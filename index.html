@@ -167,6 +167,7 @@ th{color:var(--dim);font-weight:400}
       <p><b>하루의 흐름</b> — 아침 라디오 → 낮에 행동 2가지(오전·오후) → 해 질 녘 밤 대비 → 감염자 습격. 날짜는 실제 1945년 달력을 따라 하루씩 흐르고, 실제 역사 소식이 라디오로 들려온다.</p>
       <p><b>동료와 기록</b> — 여덟 명의 생존자 가운데 <b>네 명이 판마다 무작위로</b> 함께한다. 동료마다 능력과 이야기가 다르다. 당신의 선택이 그 이야기를 바꾼다. 하루하루는 <b>생존 일지</b>에, 주운 시대의 자료는 <b>사료 도감</b>에 남는다.</p>
       <p><b>알아 둘 것</b> — 등장인물(동료 여덟 명과 헤이스팅스 대위)과 열병·감염자는 지어낸 이야기이고, 라디오로 들려오는 전쟁 소식과 문제는 실제 역사이다.</p>
+      <p><b>방어 공사</b> — 바리케이드는 빠르고 저렴하다. 참호와 모래주머니는 물자가 더 들지만 방어선을 크게 강화한다. 함정은 한 번 설치하면 실제 발동한 밤 기준 최대 2회 유지되며, 아무도 오지 않거나 은신에 성공한 밤에는 소모되지 않는다.</p>
       <p><b>긴급 수리</b> — 조피아가 동료라면 밤 전투에서 <b>수리 모드</b>로 전환할 수 있다. 수리 중에는 사격하지 않으며, 한 번 시도할 때마다 물자 1을 소모한다. 성공률은 기본 70%, 바리케이드 배치 시 80%이고, 실패해도 물자를 잃는다. 한밤중 최대 2회까지 시도할 수 있다. 마리는 응급처치를 맡는다.</p>
        <p><b>하루 두 번</b> — 낮에는 오전·오후에 한 가지씩, 두 번 행동할 수 있다. <b>같은 일은 하루에 한 번만</b> 할 수 있고, 아침마다 동료가 📌 부탁을 한다. 들어주면 보상과 신뢰를 얻는다.</p>
       <p><b>지식</b> — 역사 문제를 맞힐 때마다 <b>+1</b> 쌓인다(사령부 교신·동료 이야기·사료 확인 문제는 보너스 +1). 쌓인 만큼 배움 단계가 올라 공사·탐색·물자 효율이 좋아지고(참호전의 교훈 → 총력전의 배급 → 레지스탕스의 길 → 전시 물자 관리 → 대서양 헌장의 연대), 문제를 풀 때 지식 1로 도움을 받을 수 있다.</p>
@@ -1708,7 +1709,7 @@ function dfCreate(P,place){
     units:Object.entries(place.units).map(([id,s],i)=>({id,s,cd:.3+i*.25,fl:0,repair:false})),
     // 전투 중의 화염병·긴급 수리는 동일한 물자 예산을 공유한다.
     supLeft:P.sup||0,repairSpent:0,repairOK:0,repairFail:0,repairAttempts:0,usedFire:0,
-    traps:(place.traps||[]).map(x=>({x,uses:3})),leaks:0,kills:0,fx:[],done:false,broke:false,shake:0};
+    traps:(place.traps||[]).map(x=>({x,uses:3})),trapTriggered:false,leaks:0,kills:0,fx:[],done:false,broke:false,shake:0};
 }
 function dfSpawn(st,e){
   const R=dfRng(Math.floor(st.t*1000)+st.si*17);
@@ -1733,7 +1734,7 @@ function dfStep(st,dt){
     const stop=DF.WALLX+4+z.row*2;
     if(z.x>stop || st.wall<=0){
       const before=z.x; z.x-=sp*dt;
-      for(const tp of st.traps){ if(tp.uses>0 && before>tp.x && z.x<=tp.x && !z.tr.includes(tp)){ z.tr.push(tp); tp.uses--; z.hit=.25;
+      for(const tp of st.traps){ if(tp.uses>0 && before>tp.x && z.x<=tp.x && !z.tr.includes(tp)){ z.tr.push(tp); tp.uses--; st.trapTriggered=true; z.hit=.25;
         if(z.boss) z.stun=3; else if(z.type==='b'){ z.stun=5; z.hp-=5*DFK.hpx; } else z.hp-= (z.type==='h'?3:2)*DFK.hpx;
         st.fx.push({k:'trap',x:tp.x,y:DF.ROWS[z.row],t:.4}); } }
       const doorN=st.units.filter(u=>u.s==='door1'||u.s==='door2').length;
@@ -1798,7 +1799,7 @@ function dfStep(st,dt){
 }
 function dfResult(st){
   const lost= st.max>0 ? 1-st.wall/st.max : 1;
-  return {usedFire:st.usedFire||0,repairSpent:st.repairSpent,repairOK:st.repairOK,repairFail:st.repairFail,repairAttempts:st.repairAttempts,leaks:st.leaks,kills:st.kills,lost,N:st.plan.N,broke:st.broke?1:0,boss:st.bossSeen?(st.bossOut||'alive'):null,bq:st.bq||0,br:st.br||0};
+  return {usedFire:st.usedFire||0,repairSpent:st.repairSpent,repairOK:st.repairOK,repairFail:st.repairFail,repairAttempts:st.repairAttempts,trapTriggered:!!st.trapTriggered,leaks:st.leaks,kills:st.kills,lost,N:st.plan.N,broke:st.broke?1:0,boss:st.bossSeen?(st.bossOut||'alive'):null,bq:st.bq||0,br:st.br||0};
 }
 function dfThrow(st,kind,x){
   if(kind==='nade'){ st.z.forEach(z=>{ if(z.hp>0&&!z.boss&&Math.abs(z.x-x)<=26){ z.hp-=8; z.hit=.25; } });
@@ -2447,8 +2448,8 @@ function buildPick(){
   const c=(S.tactics.has('newdeal')?1:0)+(knLv()>=4?1:0), tr=S.tactics.has('trench')?2:0, kb=knLv()>=1?1:0;
   choices([
     {label:'🪵 바리케이드',sub:`물자 ${Math.max(1,2-c)} → 방어선 +${3+kb}`,disabled:S.sup<Math.max(1,2-c),fn:()=>build('bar',Math.max(1,2-c),3+kb)},
-    {label:'⛏️ 참호와 모래주머니',sub:`물자 ${Math.max(1,3-c)} → 방어선 +${5+tr+kb}`,disabled:S.sup<Math.max(1,3-c),fn:()=>build('tr',Math.max(1,3-c),5+tr+kb)},
-    {label:'🪤 함정 설치',sub:'물자 1 → 오늘 밤 습격 규모 -3 (1회용)',disabled:S.sup<1,fn:()=>build('trap',1,0)},
+    {label:'⛏️ 참호와 모래주머니',sub:`물자 ${Math.max(2,4-c)} → 방어선 +${5+tr+kb}`,disabled:S.sup<Math.max(2,4-c),fn:()=>build('tr',Math.max(2,4-c),5+tr+kb)},
+    {label:'🪤 함정 설치',sub:S.trap>0?`설치된 함정 유지 중 · 남은 발동 ${S.trap}회`:'물자 1 → 실제 발동하는 밤 기준 최대 2회 유지',disabled:S.sup<1||S.trap>0,fn:()=>build('trap',1,0)},
     {label:'↩ 다른 일을 한다',cls:'ghost',fn:dayPhase},
   ]);
 }
@@ -2456,7 +2457,7 @@ function build(type,cost,g){
   didAct('build');
   if(type==='bar') log(pick(['교실 책상과 성가대 의자를 끌어다 정문을 막았다.','부서진 침대 틀과 철사로 창문마다 가시 울타리를 쳤다.']),'story');
   if(type==='tr') log(S.tactics.has('trench')?'1차 대전의 참호처럼 지그재그로 깊게 파고, 모래주머니를 이중으로 쌓았다. 언 땅에 곡괭이가 튕겨 나왔다.':'언 땅을 곡괭이로 깨고 도랑을 판 뒤 모래주머니를 쌓았다. 손바닥이 다 까졌다.','story');
-  if(type==='trap'){ log(say(['잭이 빈 깡통과 철사로 경보 장치를 만들고, 에밀이 눈 밑에 사냥용 덫을 묻었다.','빈 깡통과 철사로 경보 장치를 만들고 눈 밑에 덫을 묻었다.']),'story'); S.trap=1; }
+  if(type==='trap'){ log(say(['잭이 빈 깡통과 철사로 경보 장치를 만들고, 에밀이 눈 밑에 사냥용 덫을 묻었다.','빈 깡통과 철사로 경보 장치를 만들고 눈 밑에 덫을 묻었다.']),'story'); S.trap=2; log('설치한 덫은 실제로 발동하는 밤을 기준으로 최대 두 차례 사용한다. 조용한 밤과 은신 성공 시에는 소모되지 않는다.','info'); }
   const zb = (type!=='trap' && ok('zofia')) ? 1+(trusted('zofia')?1:0) : 0;
   if(zb) log('조피아가 못과 망치로 이음새를 단단히 보강했다.','info');
   change({sup:-cost,def:g+zb});
@@ -2679,9 +2680,9 @@ function checkpoint(done){
 
 /* ================= 밤 ================= */
 const DUSK = ['해가 숲 너머로 넘어간다. 눈 덮인 들판이 다시 붉은빛으로 물든다.','그림자가 길어질수록 숲에서 들리는 울음소리가 가까워진다.','에밀이 사냥총의 노리쇠를 당겼다. 철컥. 모두가 그 소리에 정신을 차렸다.','마리가 남은 양초를 세었다. 오늘 밤은 몇 개를 켤 수 있을까.','잭이 무전기의 다이얼을 천천히 돌린다. 잡음뿐이다.'];
-// 은신의 기본 성공률은 60%로 시작한다. 시도할 때마다 2%p 감소하며 기본 최저 20%를 유지한다.
+// 은신의 기본 성공률은 50%로 시작한다. 시도할 때마다 5%p 감소하며 기본 최저 10%를 유지한다.
 // 하루가 지나는 것만으로는 감소하거나 회복하지 않는다. 전술·동료 보너스는 기존대로 적용한다.
-function hideRate(){ const base=Math.max(20,60-2*(S.hideUses||0)); return clamp(base + (S.tactics.has('gandhi')?20:0) + (S.flags.hideBoost?10:0) + (ok('ibra')?10:0), 20, 85); }
+function hideRate(){ const base=Math.max(10,50-5*(S.hideUses||0)); return clamp(base + (S.tactics.has('gandhi')?20:0) + (S.flags.hideBoost?10:0) + (ok('ibra')?10:0), 10, 85); }
 function dusk(){
   log(`— ${dateStr()} 해 질 녘 —`,'head');
   if(S.request && !S.reqDone){ const m=mate(S.request.who); if(m.alive){ log(`${J(m.name.split(' ')[0],'이가')} 아무 말 없이 고개를 돌렸다. 오늘의 부탁은 끝내 들어주지 못했다.`,'sys'); bond(S.request.who,-1,true); } S.request=null; }
@@ -2692,7 +2693,7 @@ function dusk(){
   else if(ok('jack')) log(p===0?'잭: "무전에 잡히는 움직임이 거의 없어."':p<=6?'잭: "숲 북쪽에서 소리가 나. 많진 않아."':p<=12?'잭: "꽤 큰 무리야. 바스토뉴 쪽 도로에서 올라오고 있어."':'잭이 이어폰을 벗었다. 얼굴이 하얗다. "…셀 수가 없어."','info');
   else log('무리가 얼마나 올지 알 수 없다. 숲에서 울음소리만 점점 커진다.','sys');
   if(S.quarantine) log('당신은 격리된 지하 창고 안에서 환기창 틈으로 바깥을 내다본다. 오늘 밤은 싸움에 나서지 못한다.','bad');
-  if(S.trap) log('낮에 설치한 덫이 눈 밑에 숨겨져 있다.','info');
+  if(S.trap) log(`설치한 덫이 눈 밑에 숨겨져 있다. (남은 발동 ${S.trap}회)`,'info');
   if(S.nightType && S.nextAttack>0){ if(known) log('⚠️ '+SPECIAL[S.nightType].known,'bad'); else if(ok('jack')) log(SPECIAL[S.nightType].hint,'info'); }
   if(S.bigWave && S.nextAttack>0){ if(known) log('⚠️ 정찰병이 숨을 몰아쉬며 돌아왔다. "무리 한가운데에… 집채만 한 놈이 있어. 총알이 박혀도 끄떡없었어."','bad'); else if(ok('jack')) log('잭: "쿵, 쿵… 이 소리는 발소리야. 엄청나게 큰 무언가가 오고 있어."','info'); }
   if(S.insideThreat) log('지하 창고에 가둔 피난민이 조용하다. 너무 조용하다.','sys');
@@ -2755,8 +2756,8 @@ function night(stance){
     else log('화염병을 준비했지만, 다행히 쓸 일이 없었다.','story'); }
   const nt=S.nextAttack>0?S.nightType:null; const bruteHit = nt==='brute' && p>0;
   if(bruteHit) log('담장보다 머리 하나는 큰 거구가 앞장섰다. 놈이 몸을 부딪칠 때마다 바리케이드가 통째로 흔들린다.','bad');
-  const traps = (S.trap && p>0) ? (ok('enzo')||S.flags.enzoTrap?3:2) : 0; if(traps) log(`낮에 묻어 둔 덫 ${traps}개가 눈 밑에서 기다리고 있다.`,'info');
-  S.trap=0;
+  const traps = (S.trap && p>0) ? (ok('enzo')||S.flags.enzoTrap?3:2) : 0; if(traps) log(`설치된 덫 ${traps}개가 눈 밑에서 기다리고 있다. (남은 발동 ${S.trap}회)`,'info');
+  // 함정은 실제로 발동했을 때만 nightResult에서 내구도를 소비한다.
   if(S.insideThreat){
     S.insideThreat=0;
     log('자정 무렵, 지하 창고에서 문 긁는 소리가 들렸다. 당신들 사이에 남겨 둔 그 사람이 비틀거리며 일어섰다. 눈동자가 텅 비어 있었다.','bad');
@@ -2782,6 +2783,7 @@ function night(stance){
   dfOpen(P,res=>nightResult(res,p,dp,nt,bruteHit));
 }
 function nightResult(res,p,dp,nt,bruteHit){
+  if(res.trapTriggered && S.trap>0){ S.trap--; log(`🪤 함정이 발동했다. 남은 사용 ${S.trap}회${S.trap===0?' · 함정 소진':''}`,'info'); }
   const spend=(res.usedFire||0)+(res.repairSpent||0);
   if(spend) change({sup:-spend});
   if(res.usedFire) log(`🔥 화염병 ${res.usedFire}개를 던졌다. (물자 -${res.usedFire})`,'sys');
