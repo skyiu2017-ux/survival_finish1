@@ -1888,6 +1888,51 @@ function dfHeadless(P,place){ const st=dfCreate(P,place); let next=0;
   return dfResult(st); }
 
 /* ---------- 그림: 배경 (한 번만 그린다) ---------- */
+
+/* === RED SNOW GRAPHICS: 1945 winter pixel-art atlas; visuals only ===
+   The original sprites remain as fallback when the art file is unavailable. */
+const RS_ART=(()=>{
+  const im=new Image();let ready=false;
+  im.onload=()=>{ready=true;};im.onerror=()=>{ready=false;};
+  im.src='assets/battle_atlas.webp';
+  const actors=['me','emil','jack','marie','leon','yusuf','ibra','zofia','enzo'];
+  function crop(ctx,sx,sy,sw,sh,dx,dy,dw,dh){
+    if(!ready||!im.naturalWidth)return false;
+    try{ctx.save();ctx.imageSmoothingEnabled=false;ctx.drawImage(im,sx,sy,sw,sh,Math.round(dx),Math.round(dy),dw,dh);ctx.restore();return true;}catch(_){return false;}
+  }
+  return {
+    loaded:()=>ready,
+    bg:(ctx,weather)=>{
+      const ok=crop(ctx,0,0,320,180,0,0,320,180);
+      if(ok && weather==='moon'){ctx.fillStyle='rgba(8,15,29,.16)';ctx.fillRect(0,0,320,180);}
+      return ok;
+    },
+    actor:(ctx,id,x,y,fire)=>{
+      const i=actors.indexOf(id);if(i<0)return false;
+      return crop(ctx,(fire?28:0),185+i*30,28,30,x-4,y-10,27,34);
+    },
+    enemy:(ctx,z,t)=>{
+      const idx=z.boss?-1:z.type==='h'?1:z.type==='b'?2:0;
+      const bob=z.stun>0?0:Math.round(Math.sin(t*8+z.ph));
+      if(z.boss){
+        const f=z.hit>0?1:Math.floor(t*1.6+z.ph)%3;
+        return crop(ctx,140+f*82,185,82,73,z.x-42,DF.ROWS[1]-78+bob,84,78);
+      }
+      const fr=z.stun>0?0:Math.floor(t*5+z.ph)%2;
+      const w=idx===2?36:26,h=idx===2?35:29;
+      return crop(ctx,60+fr*36,185+idx*35,36,35,z.x-w/2,DF.ROWS[z.row]-h+bob,w,h);
+    },
+    effect:(ctx,kind,x,y,t)=>{
+      const row=kind==='boom'?0:kind==='fire'?1:kind==='trap'?2:-1;
+      if(row<0)return false;
+      const f=kind==='fire'?Math.floor(t*5)%2:kind==='boom'?Math.floor(t*7)%2:0;
+      const w=kind==='boom'?48:kind==='fire'?38:22,h=kind==='boom'?32:kind==='fire'?34:16;
+      return crop(ctx,140+f*64,267+row*48,64,48,x-w/2,y-h/2,w,h);
+    }
+  };
+})();
+/* === END RED SNOW GRAPHICS === */
+
 let DFG=null;
 function dfAssets(){
   if(DFG) return DFG;
@@ -1939,7 +1984,7 @@ function dfDraw(ctx,st,ui){
   const G=dfAssets(); const t=st.t;
   ctx.save();
   if(st.shake>0){ ctx.translate(Math.round((Math.random()-.5)*4*st.shake),Math.round((Math.random()-.5)*3*st.shake)); }
-  ctx.drawImage(G.bgs[st.weather]||G.bg,0,0);
+  if(!RS_ART.bg(ctx,st.weather)) ctx.drawImage(G.bgs[st.weather]||G.bg,0,0);
   if(st.weather==='moon'){ ctx.fillStyle='rgba(170,200,255,.10)'; ctx.fillRect(0,124,320,56); }
   // 덫
   st.traps.forEach(tp=>{ if(tp.uses<=0) return; ctx.fillStyle=OUT; ctx.fillRect(tp.x-6,171,13,4); ctx.fillStyle='#6b7078'; ctx.fillRect(tp.x-5,172,11,2); ctx.fillStyle='#a8aeb6'; for(let k=0;k<4;k++) ctx.fillRect(tp.x-5+k*3,168,1,4);
@@ -1953,7 +1998,7 @@ function dfDraw(ctx,st,ui){
   if(ui&&ui.phase==='place') DF_ORDER.forEach(s=>{ const S2=DF_SLOTS[s]; const blink=Math.floor(performanceNow()/300)%2;
     ctx.strokeStyle= ui.sel&&ui.sel!=='trap'? (blink?'#ffd84a':'#fff3b0') : 'rgba(255,255,255,.35)'; ctx.lineWidth=1; ctx.strokeRect(S2.x-1.5,S2.y-1.5,19,19); });
   st.units.forEach(u=>{ const S2=DF_SLOTS[u.s]; let ux=S2.x, uy=S2.y; if(u.from && u.mv<1){ u.mv=Math.min(1,u.mv+.035); ux=u.from.x+(S2.x-u.from.x)*u.mv; uy=u.from.y+(S2.y-u.from.y)*u.mv-Math.sin(u.mv*Math.PI)*6; }
-    pdraw(ctx,G.u[u.id],Math.round(ux),Math.round(uy));
+    if(!RS_ART.actor(ctx,u.id,Math.round(ux),Math.round(uy),u.fl>0))pdraw(ctx,G.u[u.id],Math.round(ux),Math.round(uy));
     if(u.fl>0 && (!u.from||u.mv>=1)){ ctx.fillStyle='#ffe066'; ctx.fillRect(S2.x+16,S2.y+7,3,3); ctx.fillStyle='#fff'; ctx.fillRect(S2.x+17,S2.y+8,1,1); ctx.fillStyle='#ff9a2e'; ctx.fillRect(S2.x+19,S2.y+8,2,1); }
     if(ui&&ui.sel===u.id){ ctx.strokeStyle='#ffd84a'; ctx.strokeRect(S2.x-1.5,S2.y-1.5,19,19); }
     if(u.id==='yusuf' && ui&&ui.phase==='run' && Math.floor(t*3)%2){ ctx.fillStyle='#e8c27a'; ctx.fillRect(S2.x+14,S2.y+4,2,2); }
@@ -1965,7 +2010,7 @@ function dfDraw(ctx,st,ui){
     const bob = (z.stun>0)?0:(Math.floor(t*6+z.ph)%2);
     const x=Math.round(z.x-fr.w/2), y=DF.ROWS[z.row]-fr.h+bob+ (z.boss?6:0);
     const shade = z.row===0 ? 'rgba(40,30,60,.25)' : null;
-    pdraw(ctx,fr,x,y, z.hit>0?'#ffffff':null);
+    if(!RS_ART.enemy(ctx,z,t))pdraw(ctx,fr,x,y, z.hit>0?'#ffffff':null);
     if(shade && z.hit<=0){ /* 뒷줄은 살짝 어둡게 */ }
     if(z.boss){ ctx.fillStyle='rgba(192,74,224,.16)'; ctx.fillRect(x-4,y-4,fr.w+8,fr.h+8);
       for(let k=0;k<z.max;k++){ ctx.fillStyle=OUT; ctx.fillRect(x+k*16,y-8,14,5); ctx.fillStyle=k<z.hp?'#c04ae0':'#3a2f44'; ctx.fillRect(x+1+k*16,y-7,12,3); } }
