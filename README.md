@@ -6,27 +6,22 @@
 
 **https://skyiu2017-ux.github.io/survival_finish1/**
 
-> 위 링크는 저장소 소유자가 GitHub Pages를 처음 활성화한 뒤 작동합니다.
+> 위 링크는 저장소 소유자가 GitHub Pages를 최초 활성화하면 작동합니다.
 
-## 최초 GitHub Pages 활성화 (교사용, 한 번만)
+## 처음 한 번만 설정하기 (교사용)
 
-1. [이 저장소](https://github.com/skyiu2017-ux/survival_finish1)에서 **Settings** 탭을 엽니다.
-2. 왼쪽 메뉴 **Pages**를 클릭합니다.
-3. **Build and deployment → Source → GitHub Actions**를 선택합니다.
-4. **Actions** 탭에서 **Publish Red Snow game**을 선택하고, **Run workflow**(또는 실패한 실행의 **Re-run jobs**)로 배포를 다시 실행합니다.
-5. 배포 작업이 성공한 뒤 위 학생용 링크를 열어 확인합니다.
+1. [저장소](https://github.com/skyiu2017-ux/survival_finish1)의 **Settings** 탭을 엽니다.
+2. 왼쪽 **Pages** 메뉴를 클릭합니다.
+3. **Build and deployment → Source**를 **Deploy from a branch**로 선택합니다.
+4. **Branch**에서 **main**, 폴더는 **/(root)**로 선택한 뒤 **Save**를 누릅니다.
+5. GitHub에서 배포가 완료되면 위 학생용 게임 링크를 열어 확인합니다.
 
-`index.html`이 게임 본문이며, `.github/workflows/deploy-pages.yml`이 main 브랜치 업데이트 시 자동 배포합니다.
+게임 내용은 루트 폴더의 `index.html`입니다. 이후 `index.html`이 바뀌면 GitHub Pages에도 자동 반영됩니다. 별도 GitHub Actions 설정은 필요 없습니다.
 
-## 게임 및 랭킹
+## 랭킹과 학생 개인정보
 
-- 플레이 기간: 1945년 1월 29일 ~ 5월 8일, 최대 100일 생존
-- 사망하면 다시 시작하는 로그라이크 방식, 게임 종료 시 기록 자동 등록
-- 순위: **생존 일수 → 누적 획득 지식 → 종료 시 남은 식량 → 종료 시 남은 물자**, 높은 순
-- 학급 공용 랭킹은 게임에 입력된 Google Apps Script 웹 앱과 별도로 연결됩니다. GitHub Pages 자체는 랭킹 저장 서버가 아닙니다.
-- 학생의 실명·학번 대신 **교사가 배부한 별명이나 익명 코드**를 사용하세요.
-- 공개 웹페이지의 게임 기록은 브라우저에서 변조될 수 있습니다. 공식 수행평가나 고부담 성적 산출에는 별도 검증 없이 사용하지 마세요.
-
-## 유지관리
-
-게임 수정 시 `index.html`을 업데이트하면 GitHub Actions가 자동으로 웹사이트를 재배포합니다.
+- 최대 100일 생존(1945년 1월 29일~5월 8일), 실패하면 처음부터 다시 도전합니다.
+- 순위: **생존 일수 → 누적 획득 지식 → 종료 시 남은 식량 → 종료 시 남은 물자**, 모두 높은 순입니다.
+- Google Apps Script 웹 앱 주소가 게임 파일에 설정되어 있습니다. **공용 랭킹이 제대로 동작하려면 이 Google Apps Script 서버가 별도로 정상 배포되어 있어야 합니다.** GitHub는 게임 웹페이지만 호스팅합니다.
+- 학생에게는 실명·학번 대신 교사가 배정한 **익명 코드** 사용을 권장합니다.
+- 브라우저에서 제출되는 기록은 기술적으로 조작할 수 있으므로, 공식 성적 산출에 사용하려면 추가 인증·검증이 필요합니다.
