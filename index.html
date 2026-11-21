@@ -700,7 +700,7 @@ function draw(kind,ctx){
   if(S.forceIdx && S.forceIdx.kind===kind){
     const i=S.forceIdx.i;S.forceIdx=null;S.used[kind].add(i);S.lastDrawKind=kind;S.quizTopics[quizTopic(kind,i)]=S.day;return i;
   }
-  const order=[kind,...['mc','ox','cho','ord'].filter(k=>k!==kind)];
+  const order=ctx==='boss'?[kind]:[kind,...['mc','ox','cho','ord'].filter(k=>k!==kind)];
   let chosen=null, ckind=kind;
   for(const k of order){
     const pool=questionPool(k,ctx);
@@ -1761,7 +1761,7 @@ function frame(ctx,x,y,w,h,fill){ // 도트 액자
 
 /* ================= 픽셀 디펜스 (가로 · 옆모습) ================= */
 const DF={W:320,H:180,WALLX:112,DOORX:44,SPAWNX:328,ROWS:[150,158,166]};
-const DFK={melee:4.8,k:1.5,n:2.1,w:4.3,g:2.5,hpx:6,zs:.67,boss:3,bossLeak:6,spd:1};
+const DFK={melee:4.8,k:1.70,n:2.1,w:4.3,g:2.5,hpx:6,zs:.67,boss:3,bossLeak:6,spd:1};
 const DF_SLOTS={
   tower:{x:33,y:47,range:330,n:'종탑',tip:'사거리 가장 김 · 단발 위력 증가, 사격 속도는 느림'},
   win1: {x:4, y:91,range:220,n:'왼쪽 창가',tip:'사격 속도 빠름 · 중거리 담당'},
@@ -1821,7 +1821,7 @@ function dfCreate(P,place){
 }
 function dfSpawn(st,e){
   const R=dfRng(Math.floor(st.t*1000)+st.si*17);
-  const X=DFK.hpx, Z=DFK.zs; const base={w:{hp:Math.round(2*X*Z),spd:13,atk:1*Z},b:{hp:14*X,spd:8,atk:4},h:{hp:Math.round(3*X*Z),spd:22,atk:1.5*Z},B:{hp:DFK.boss,spd:5.5,atk:7}}[e.type];
+  const X=DFK.hpx, Z=DFK.zs; const base={w:{hp:Math.round(2*X*Z),spd:13,atk:1*Z},b:{hp:14*X,spd:8,atk:4},h:{hp:Math.round(3*X*Z),spd:22,atk:1.5*Z},B:{hp:st.P.bossNeed||DFK.boss,spd:5.5,atk:7}}[e.type];
   if(e.type==='B'){ st.bossSeen=true; st.shake=1; }
   st.z.push({boss:e.type==='B',type:e.type,x:DF.SPAWNX+R()*12,row:e.type==='B'?1:e.row,hp:base.hp,max:base.hp,spd:base.spd*(.8+R()*.4)*DFK.spd,atk:base.atk,stun:0,tr:[],hit:0,wt:0,ph:R()*6});
 }
@@ -1893,12 +1893,12 @@ function dfStep(st,dt){
         u.cd=U.cd*DFK.k*mod.cd; u.fl=.2; st.fx.push({k:'boom',x:tg.x,y:DF.ROWS[tg.row]-4,t:.6,seed:Math.floor(st.t*100)},{k:'num',x:tg.x,y:DF.ROWS[tg.row]-24,v:'-'+U.dmg,t:.7}); }
     } else if(U.kind==='blast'){
       const tg=st.z.filter(inR).sort((a,b)=>a.x-b.x)[0];
-      if(tg){ st.z.forEach(z=>{ if(z.hp>0&&!z.boss&&Math.abs(z.x-tg.x)<=24*mod.blast){ z.hp-=U.dmg*mod.dmg; z.hit=.2; } });
+      if(tg){ st.z.forEach(z=>{ if(z.hp>0&&!z.boss&&Math.abs(z.x-tg.x)<=20*mod.blast){ z.hp-=U.dmg*.82*mod.dmg; z.hit=.2; } });
         u.cd=U.cd*DFK.k*mod.cd; u.fl=.2; st.shake=.3; st.fx.push({k:'boom',x:tg.x,y:DF.ROWS[tg.row]-4,t:.6,seed:Math.floor(st.t*100)+3},{k:'boom',x:tg.x+10,y:DF.ROWS[tg.row]-2,t:.6,seed:Math.floor(st.t*100)+9},{k:'num',x:tg.x,y:DF.ROWS[tg.row]-24,v:'-'+U.dmg,t:.7}); }
 
     }
   }
-  if(st.fires&&st.fires.length){ st.fires.forEach(f=>{ f.t-=dt; st.z.forEach(z=>{ if(z.hp>0&&!z.boss&&Math.abs(z.x-f.x)<=22){ z.hp-=5*dt; if(Math.random()<.1) z.hit=.1; } }); }); st.fires=st.fires.filter(f=>f.t>0); }
+  if(st.fires&&st.fires.length){ st.fires.forEach(f=>{ f.t-=dt; st.z.forEach(z=>{ if(z.hp>0&&!z.boss&&Math.abs(z.x-f.x)<=16){ z.hp-=2.2*dt; if(Math.random()<.1) z.hit=.1; } }); }); st.fires=st.fires.filter(f=>f.t>0); }
   const dead=st.z.filter(z=>z.hp<=0);
   dead.forEach(z=>{ if(z.boss&&!z.leaked){ st.bossOut='dead'; st.shake=1; } if(!z.leaked){ st.kills++; st.fx.push({k:'die',x:z.x,y:DF.ROWS[z.row],t:.5,big:z.boss||z.type==='b'}); } });
   st.z=st.z.filter(z=>z.hp>0);
@@ -1913,7 +1913,7 @@ function dfResult(st){
 function dfThrow(st,kind,x){
   if(kind==='nade'){ st.usedNades=(st.usedNades||0)+1; st.z.forEach(z=>{ if(z.hp>0&&!z.boss&&Math.abs(z.x-x)<=26){ z.hp-=8; z.hit=.25; } });
     st.shake=.5; st.fx.push({k:'boom',x,y:156,t:.6,seed:Math.floor(x*7)},{k:'boom',x:x-9,y:160,t:.6,seed:Math.floor(x*3)},{k:'boom',x:x+9,y:152,t:.6,seed:Math.floor(x*5)}); }
-  if(kind==='fire'){ if(st.supLeft<1)return false; st.supLeft--; st.usedFire++; st.fires=(st.fires||[]); st.fires.push({x,t:4.5}); st.fx.push({k:'boom',x,y:158,t:.5,seed:Math.floor(x*11)}); }
+  if(kind==='fire'){ if(st.supLeft<1)return false; st.supLeft--; st.usedFire++; st.fires=(st.fires||[]); st.fires.push({x,t:2.4}); st.fx.push({k:'boom',x,y:158,t:.5,seed:Math.floor(x*11)}); }
   return true;
 }
 function dfBoss(st){ return st.z.find(z=>z.boss&&z.hp>0); }
@@ -2083,7 +2083,7 @@ function dfDraw(ctx,st,ui){
 function performanceNow(){ return (typeof performance!=='undefined'&&performance.now)?performance.now():Date.now(); }
 
 /* ---------- 보스 문제 ---------- */
-function dfAskData(){ let idx=draw('cho','note');if(idx<0){ const available=CHO.map((_,i)=>i).filter(i=>!S.used.cho.has(i));idx=available.length?available[0]:Math.floor(Math.random()*CHO.length);}const Q=CHO[idx]; S.total++; return {Q,i:idx,code:toCho(Q.a[0])}; }
+function dfAskData(){ let idx=draw('cho','boss');if(idx<0){ const available=CHO.map((_,i)=>i).filter(i=>!S.used.cho.has(i));idx=available.length?available[0]:Math.floor(Math.random()*CHO.length);}const Q=CHO[idx]; S.total++; return {Q,i:idx,code:toCho(Q.a[0])}; }
 function dfAnswer(d,ok){
   if(ok){ S.correct++; S.streak++; S.maxStreak=Math.max(S.maxStreak,S.streak); change({kn:1}); }
   else { S.streak=0; S.missed.push({q:`[거인 앞에서 외친 말] ${d.Q.h} (${d.code})`,a:d.Q.a[0],e:''}); scheduleReview('cho',d.i); }
@@ -2111,7 +2111,7 @@ function dfOpen(P,done){
   const cnt={w:0,b:0,h:0,B:0}; plan.list.forEach(e=>cnt[e.type]++);
   const scout = P.known ? `🔭 정찰 결과: 감염자 ${cnt.w}${cnt.b?` · 거구 ${cnt.b}`:''}${cnt.h?` · 사냥꾼 ${cnt.h}`:''}${cnt.B?' · 🗿거인':''} — 중간에 큰 물결이 한 번 온다`
     : P.radio ? `📻 잭: "대충 ${Math.round(plan.N/10)*10}마리쯤… 정확히는 몰라."` : '얼마나 올지 모른다. (정찰하면 무리 구성이 보인다)';
-  const placeText=()=>{ top.innerHTML=`<b>🌙 ${dateStr()} 밤 — 습격!</b> 담장 내구 ${P.dp}<br><span>${scout}</span>${P.boss?'<br><span style="color:#e7b6ff">🗿 거인에게는 총알이 듣지 않는다. 나타나면 교과서 개념을 입력해 맞혀라! (3번)</span>':''}<br><span>직접 던질 것: 💣 수류탄 ${P.nades||0} · 🔥 화염병 ${P.fires||0}${P.units.includes('zofia')?' · 🔧 조피아 긴급 수리(물자 1/회 · 밤당 2회 · 실패 가능)':''}</span>`;
+  const placeText=()=>{ top.innerHTML=`<b>🌙 ${dateStr()} 밤 — 습격!</b> 담장 내구 ${P.dp}<br><span>${scout}</span>${P.boss?'<br><span style="color:#e7b6ff">🗿 거인에게는 총알이 듣지 않는다. 나타나면 교과서 개념을 입력해 맞혀라! (${P.bossNeed||3}번)</span>':''}<br><span>직접 던질 것: 💣 수류탄 ${P.nades||0} · 🔥 화염병 ${P.fires||0}${P.units.includes('zofia')?' · 🔧 조피아 긴급 수리(물자 1/회 · 밤당 2회 · 실패 가능)':''}</span>`;
     const s=ui.sel; tip.innerHTML = !s ? '배치 전략: 종탑=장거리·강한 한 발, 왼쪽 창가=빠른 사격, 오른쪽 창가=광역 지원, 전방=근접 저지. 동료의 신뢰도도 사격 효율에 반영된다. 카드를 눌러 위치를 바꿔 보자.' : s==='trap' ? '덫: 눈밭 바닥을 누르면 그 자리로 옮긴다. 밟은 놈은 다치고 거구·거인은 잠시 묶인다.' : `<b>${DF_UNITS[s].n}</b> — ${DF_UNITS[s].tip} · 지금 자리: ${DF_SLOTS[place.units[s]].n} (${DF_SLOTS[place.units[s]].tip})`; };
   const L=e=>{ const r=cv.getBoundingClientRect(); return {x:(e.clientX-r.left)/r.width*DF.W, y:(e.clientY-r.top)/r.height*DF.H}; };
   const act=document.getElementById('dfAct');
@@ -2912,7 +2912,7 @@ function night(stance){
   log(`— ${dateStr()} 밤 —`,'head');
   let p=S.nextAttack;
   if(stance==='fire'){ change({sup:-1});
-    if(p>0){ log('어둠 속으로 화염병을 던졌다. 불길이 치솟으며 앞줄의 그림자들이 쓰러졌다.','story'); p=Math.max(0,p-3); if(chance(S.darkNight?.35:.25)){ p+=rnd(2,4); log('그러나 치솟은 불빛을 보고 다른 숲길의 무리까지 몰려들었다!','bad'); } }
+    if(p>0){ log('어둠 속으로 화염병을 던졌다. 불길이 치솟으며 앞줄의 그림자들이 쓰러졌다.','story'); p=Math.max(0,p-2); if(chance(S.darkNight?.40:.30)){ p+=rnd(2,4); log('그러나 치솟은 불빛을 보고 다른 숲길의 무리까지 몰려들었다!','bad'); } }
     else log('화염병을 준비했지만, 다행히 쓸 일이 없었다.','story'); }
   const nt=S.nextAttack>0?S.nightType:null; const bruteHit = nt==='brute' && p>0;
   if(bruteHit) log('담장보다 머리 하나는 큰 거구가 앞장섰다. 놈이 몸을 부딪칠 때마다 바리케이드가 통째로 흔들린다.','bad');
@@ -2924,7 +2924,7 @@ function night(stance){
     change({hp:-rnd(8,14),mo:-6}); if(chance(.5)) injureMate(5); note('밤: 안에서 감염자가 깨어났다');
     if(checkDeath()) return;
   }
-  if(p===0){ note('밤: 조용했다'); log(pickAlive(['이상하리만치 조용한 밤이다. 모두 오랜만에 몇 시간씩 잠을 잤다.','멀리서 울음소리만 들릴 뿐, 놈들은 오지 않았다.','잭이 하모니카로 고향 노래를 불었다. 아무도 오지 않는 밤이었다.']),'good'); change({mo:3}); return endNight(); }
+  if(p===0){ note('밤: 조용했다'); log(pickAlive(['이상하리만치 조용한 밤이다. 모두 오랜만에 몇 시간씩 잠을 잤다.','멀리서 울음소리만 들릴 뿐, 놈들은 오지 않았다.','잭이 하모니카로 고향 노래를 불었다. 아무도 오지 않는 밤이었다.']),'good'); if(S.mo<55)change({mo:1}); return endNight(); }
   let dp=defPower();
   if(stance==='hide'){
     log('불을 모두 끄고 숨을 죽였다. 눈 밟는 소리가 창문 바로 아래를 지나간다…','story');
@@ -2937,7 +2937,7 @@ function night(stance){
   sfx('thump');
   log(pick(APPROACH[p<=6?'s':p<=12?'m':'l'])+` <span class="sys">(습격 규모 ${p} / 방어력 ${dp})</span>`,'story');
   const units=['me',...S.squad.map(m=>m.id)].filter(u=>u==='me'?!S.quarantine:ok(u));
-  const P={nades:S.grenades||0,fires:S.sup,sup:S.sup,p,dp,nt,bruteHit,boss:!!S.bigWave,traps,darkNight:S.darkNight,bond:{...S.bond},units,known:S.known||S.tactics.has('enigma'),radio:ok('jack'),seed:(Date.now()+S.day*7919)%2147483647};
+  const P={nades:S.grenades||0,fires:S.sup,sup:S.sup,p,dp,nt,bruteHit,boss:!!S.bigWave,bossNeed:Math.min(6,3+Math.floor(Math.max(0,S.day-1)/25)),traps,darkNight:S.darkNight,bond:{...S.bond},units,known:S.known||S.tactics.has('enigma'),radio:ok('jack'),seed:(Date.now()+S.day*7919)%2147483647};
   const big = S.bigWave || nt==='brute' || nt==='hunter' || p>=14 || !S.flags.dfTut;
   if(big){ S.flags.dfTut=true; log(S.bigWave?'🗿 땅이 울린다. 이번 습격은 다르다. 모두 자리로!':'⚔️ 큰 습격이다! 모두 자리로!','bad'); } else P.auto=true;
   dfOpen(P,res=>nightResult(res,p,dp,nt,bruteHit));
@@ -2957,17 +2957,20 @@ function nightResult(res,p,dp,nt,bruteHit){
     else log('거인은 담장 앞에서 울부짖다가 새벽이 오자 숲으로 돌아갔다. 놈은 다시 올 것이다.','sys');
   }
   const tl=shuffle(teamLines()); const defBefore=S.def;
-  const margin = res.leaks===0 ? (res.lost<.35?3:0) : -Math.ceil(res.leaks/DFK.g);
+  // 뚫린 적이 없으면 외벽 마모는 소규모로 제한한다. 실시간 내구도 비율을 전체 방어력의 절반까지 차감하지 않는다.
+  const margin = res.leaks===0 ? (!res.broke&&res.lost<.32?3:0) : -Math.ceil(res.leaks/DFK.g);
   if(margin>=0 && (nt==='brute'||nt==='hunter')) award(nt);
   if(margin>=3){
     log(tl[0],'story');
     log(pick(['놈들은 방어선에 막혀 한 발짝도 들어오지 못했다. 완벽한 밤이었다.','방어선은 미동도 하지 않았다. 새벽이 오기도 전에 무리가 물러갔다.']),'good');
-    change({def:-1,mo:5}); note('밤: 방어선이 완벽히 버텼다');
+    change({def:-1,mo:S.mo<65?1:0}); note('밤: 방어선이 완벽히 버텼다');
     log(`바리케이드 한쪽이 긁히고 패였다. 방어선 ${defBefore} → ${S.def}`,'sys');
   } else if(margin>=0){
     log(tl[0]+' '+(tl[1]||''),'story');
-    log(pick(['바리케이드가 몇 번이나 휘청였지만, 끝내 버텨 냈다.','마지막 한 무리가 철조망에 엉킨 채 새벽을 맞았다. 아슬아슬했다.']),'good');
-    change({def:-Math.max(1,Math.round(S.def*res.lost*(S.tactics.has('trench')?.6:.8))),mo:2}); note('밤: 간신히 막아 냈다');
+    if(res.broke)log('외벽은 무너졌지만 정문을 지켜 냈다. 감염자의 실내 유입은 없었다.','info');
+    else log(pick(['바리케이드가 몇 번이나 휘청였지만, 끝내 버텨 냈다.','마지막 한 무리가 철조망에 엉킨 채 새벽을 맞았다. 아슬아슬했다.']),'good');
+    const wear=res.broke?Math.min(12,Math.max(4,Math.ceil(S.def*.12))):Math.max(1,Math.min(7,Math.ceil(res.lost*8*(S.tactics.has('trench')?.8:1))));
+    change({def:-wear,mo:res.broke?-3:0}); note('밤: 실내 유입 없이 방어했다');
     log(`밤새 받아 낸 바리케이드가 군데군데 부서졌다. 방어선 ${defBefore} → ${S.def}. 내일 다시 손봐야 한다.`,'sys');
   } else {
     const gap=-margin;
