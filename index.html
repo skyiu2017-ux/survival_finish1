@@ -174,7 +174,7 @@ th{color:var(--dim);font-weight:400}
       <p><b>방어 공사</b> — 바리케이드는 빠르고 저렴하다. 참호와 모래주머니는 물자가 더 들지만 방어선을 크게 강화한다. 함정은 한 번 설치하면 실제 발동한 밤 기준 최대 2회 유지되며, 아무도 오지 않거나 은신에 성공한 밤에는 소모되지 않는다.</p>
       <p><b>긴급 수리</b> — 조피아가 동료라면 밤 전투에서 <b>수리 모드</b>로 전환할 수 있다. 수리 중에는 사격하지 않으며, 한 번 시도할 때마다 물자 1을 소모한다. 성공률은 기본 70%, 바리케이드 배치 시 80%이고, 실패해도 물자를 잃는다. 한밤중 최대 2회까지 시도할 수 있다. 마리는 응급처치를 맡는다.</p>
        <p><b>하루 두 번</b> — 낮에는 오전·오후에 한 가지씩, 두 번 행동할 수 있다. <b>같은 일은 하루에 한 번만</b> 할 수 있고, 아침마다 동료가 📌 부탁을 한다. 들어주면 보상과 신뢰를 얻는다.</p>
-      <p><b>지식</b> — 역사 문제를 맞힐 때마다 <b>+1</b> 쌓인다(사령부 교신·동료 이야기·사료 확인 문제는 보너스 +1). 쌓인 만큼 배움 단계가 올라 공사·탐색·물자 효율이 좋아지고(참호전의 교훈 → 총력전의 배급 → 레지스탕스의 길 → 전시 물자 관리 → 대서양 헌장의 연대), 문제를 풀 때 지식 1로 도움을 받을 수 있다.</p>
+      <p><b>지식</b> — 역사 문제를 맞힐 때마다 <b>+1</b> 쌓인다(사령부 교신·동료 이야기·사료 확인 문제는 보너스 +1). 누적 획득 지식은 랭킹에 남으며, 지금 소비할 수 있는 지식은 최대 20까지 보관한다. 쌓인 만큼 배움 단계가 올라 공사·탐색·물자 효율이 좋아지고(참호전의 교훈 → 총력전의 배급 → 레지스탕스의 길 → 전시 물자 관리 → 대서양 헌장의 연대), 문제를 풀 때 지식 1로 도움을 받을 수 있다.</p>
       <p><b>버티기</b> — 겨울에는 땔감(물자)이 없으면 얼어붙고, 날이 갈수록 탐색할 곳은 바닥나고 공포는 깊어진다. <b>은신은 반복할수록 들킬 위험이 커지고, 쓰지 않은 날에는 그대로 유지된다.</b> 체력 0 또는 사기 0이 되면 끝. 랭킹은 <b>버틴 날 수</b>를 최우선으로 매긴다.</p>
     </div>
     <div id="champBox"></div>
@@ -2507,6 +2507,20 @@ function didAct(id){
   if(S.request && !S.reqDone && S.request.act===id){ S.reqDone=true; const m=mate(S.request.who);
     log(`📌 ${m.name.split(' ')[0]}의 부탁을 들어주었다.`,'good'); change(S.request.rw); bond(S.request.who,1,true); }
 }
+/* ---- 누적 지식(랭킹)과 현재 지식(최대 20)의 용도를 분리한다. ---- */
+function knowledgeTactics(){
+  const opt=(label,cost,sub,apply,disabled)=>({label,sub:`지식 ${cost} 소비 · ${sub}`,disabled:S.kn<cost||S.knUsedDay===S.day||disabled,fn:()=>{
+    if(S.kn<cost||S.knUsedDay===S.day)return;
+    S.knUsedDay=S.day;change({kn:-cost});apply();note('지식을 활용한 전술 재정비');dayPhase();
+  }});
+  choices([
+    opt('📜 암호지도로 습격 규모 파악',5,'정찰 없이 오늘 밤 규모 확인',()=>{S.known=true;render();},S.known||S.tactics.has('enigma')),
+    opt('📜 작전 재정비',8,'사기 +4 · 사기가 65 미만일 때',()=>change({mo:4}),S.mo>=65),
+    opt('📜 응급 방어 계획',7,'방어선 +2 · 방어선이 30 미만일 때',()=>change({def:2}),S.def>=30),
+    opt('📜 야전 치료 지식',6,'체력 +9 · 체력이 60 미만일 때',()=>change({hp:9}),S.hp>=60),
+    {label:'↩ 돌아간다',cls:'ghost',fn:dayPhase}
+  ]);
+}
 function dayPhase(){
   if(S.slotLog!==S.actLeft){ S.slotLog=S.actLeft; if(S.actLeft>=2 && !S.request) makeRequest(); log(S.actLeft>=2?'☀️ 오전 — 무엇을 할까? (오늘 남은 행동 2 · 같은 일은 하루에 한 번)':'🌤️ 오후 — 해가 지기 전에 한 가지 더 할 수 있다. (오전과 다른 일)','slot'); }
   const done=id=>(S.todayActs||[]).includes(id);
@@ -2514,6 +2528,7 @@ function dayPhase(){
   const hurt=S.squad.filter(m=>m.alive&&m.hurt);
   const heal=ok('marie')?26:22;
   choices([
+    {label:'📜 지식 활용 · 작전회의',sub:S.knUsedDay===S.day?'오늘은 이미 실행했다':`보유 지식 ${S.kn}/20 · 하루 한 번, 행동 소모 없음`,disabled:S.knUsedDay===S.day||S.kn<5,fn:knowledgeTactics},
     {label:'🔦 탐색 나가기',sub:done('explore')?'오늘은 이미 다녀왔다':'식량·물자(장작)를 구한다 · 부상 위험',fn:explorePick,disabled:done('explore')},
     {label:'🛠️ 방어 공사',sub:done('build')?'오늘은 이미 했다':`${tag('build')}방어선을 쌓는다 (현재 ${S.def})`,fn:buildPick,disabled:done('build')},
     {label:'📓 헤이스팅스 대위의 수첩 해독',sub:done('archive')?'오늘은 이미 했다':`${tag('archive')}문제를 풀어 은닉처를 찾는다 · 틀리면 허탕`,fn:()=>{didAct('archive');archive();},disabled:done('archive')},
