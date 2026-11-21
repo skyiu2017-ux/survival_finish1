@@ -1948,7 +1948,7 @@ const RS_ART=(()=>{
   const actors=['me','emil','jack','marie','leon','yusuf','ibra','zofia','enzo'];
   function crop(ctx,sx,sy,sw,sh,dx,dy,dw,dh){
     if(!ready||!im.naturalWidth)return false;
-    try{ctx.save();ctx.imageSmoothingEnabled=false;ctx.drawImage(im,sx,sy,sw,sh,Math.round(dx),Math.round(dy),dw,dh);ctx.restore();return true;}catch(_){return false;}
+    try{ctx.save();ctx.imageSmoothingEnabled=false;const scale=im.naturalWidth/400;ctx.drawImage(im,Math.round(sx*scale),Math.round(sy*scale),Math.max(1,Math.round(sw*scale)),Math.max(1,Math.round(sh*scale)),Math.round(dx),Math.round(dy),dw,dh);ctx.restore();return true;}catch(_){return false;}
   }
   return {
     loaded:()=>ready,
