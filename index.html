@@ -167,6 +167,7 @@ th{color:var(--dim);font-weight:400}
       <p><b>하루의 흐름</b> — 아침 라디오 → 낮에 행동 2가지(오전·오후) → 해 질 녘 밤 대비 → 감염자 습격. 날짜는 실제 1945년 달력을 따라 하루씩 흐르고, 실제 역사 소식이 라디오로 들려온다.</p>
       <p><b>동료와 기록</b> — 여덟 명의 생존자 가운데 <b>네 명이 판마다 무작위로</b> 함께한다. 동료마다 능력과 이야기가 다르다. 당신의 선택이 그 이야기를 바꾼다. 하루하루는 <b>생존 일지</b>에, 주운 시대의 자료는 <b>사료 도감</b>에 남는다.</p>
       <p><b>알아 둘 것</b> — 등장인물(동료 여덟 명과 헤이스팅스 대위)과 열병·감염자는 지어낸 이야기이고, 라디오로 들려오는 전쟁 소식과 문제는 실제 역사이다.</p>
+      <p><b>전투 투척물</b> — 수류탄은 처음 3개만 주어지며, 쓰면 없어지고 탐색·수첩·원정에서 드물게 찾아야 한다. 화염병은 별도 재고가 아니라 <b>현재 물자 1개를 소비</b>해 던진다. 전투에서 두 버튼 중 하나를 선택하고 감염자가 모인 눈밭을 누르자.</p>
       <p><b>방어 공사</b> — 바리케이드는 빠르고 저렴하다. 참호와 모래주머니는 물자가 더 들지만 방어선을 크게 강화한다. 함정은 한 번 설치하면 실제 발동한 밤 기준 최대 2회 유지되며, 아무도 오지 않거나 은신에 성공한 밤에는 소모되지 않는다.</p>
       <p><b>긴급 수리</b> — 조피아가 동료라면 밤 전투에서 <b>수리 모드</b>로 전환할 수 있다. 수리 중에는 사격하지 않으며, 한 번 시도할 때마다 물자 1을 소모한다. 성공률은 기본 70%, 바리케이드 배치 시 80%이고, 실패해도 물자를 잃는다. 한밤중 최대 2회까지 시도할 수 있다. 마리는 응급처치를 맡는다.</p>
        <p><b>하루 두 번</b> — 낮에는 오전·오후에 한 가지씩, 두 번 행동할 수 있다. <b>같은 일은 하루에 한 번만</b> 할 수 있고, 아침마다 동료가 📌 부탁을 한다. 들어주면 보상과 신뢰를 얻는다.</p>
@@ -663,7 +664,7 @@ const CHOSUNG='ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ';
 function toCho(s){return [...s].map(ch=>{const c=ch.charCodeAt(0); return (c>=0xAC00&&c<=0xD7A3)?CHOSUNG[Math.floor((c-0xAC00)/588)]:ch;}).join('');}
 
 function newState(name){
-  return {name, runId:'run_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,12), day:0, hp:70, mo:55, food:5, sup:5, def:3, kn:0, hideUses:0, quarantine:false,
+  return {name, runId:'run_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,12), day:0, hp:70, mo:55, food:5, sup:5, def:3, kn:0, grenades:3, hideUses:0, quarantine:false,
     squad:makeSquad(), tactics:new Set(), trap:0, nextAttack:0, known:false,
     used:{mc:new Set(),ox:new Set(),cho:new Set(),ord:new Set()}, posBag:[], oxBag:[], evUsed:[],
     missed:[], correct:0, total:0, dead:false, lastNews:'',
@@ -752,7 +753,7 @@ function render(){
   const hurtN=S.squad.filter(m=>m.alive&&m.hurt).length, goneN=S.squad.filter(m=>!m.alive).length;
   $('btnMates').textContent=`👥 동료 ${S.squad.filter(m=>m.alive).length}명${hurtN?` · 🩹${hurtN}`:''}${goneN?` · ✝${goneN}`:''}`;
   $('btnMates').classList.toggle('warn',hurtN>0);
-  $('btnTac').textContent=`★ 전술 ${S.tactics.size} · 🏅 ${S.ach.size}`;
+  $('btnTac').textContent=`★ 전술 ${S.tactics.size} · 🏅 ${S.ach.size} · 💣 ${S.grenades||0}`;
   let f=''; const p=S.nextAttack;
   if(S.tactics.has('enigma')||S.known) f = p>0?`📡 오늘 밤 습격 규모 ${p} · 현재 방어력 ${defPower()}`:'📡 오늘 밤은 조용할 것이다.';
   else if(ok('jack')) f = p===0?'📻 잭: "오늘 밤은 무전에 잡히는 움직임이 거의 없어."':p<=6?'📻 잭: "소규모 무리가 움직이고 있어."':p<=12?'📻 잭: "상당한 무리야. 단단히 준비해."':'📻 잭: "…엄청난 무리가 오고 있어."';
@@ -1482,6 +1483,7 @@ function baseNight(){
 }
 function expEnd(){
   const e=EXPED[S.exp.k], m=mate(S.exp.who);
+  if(chance(.18)){S.grenades=(S.grenades||0)+1;log('💣 귀로에 방치된 군용 수류탄 한 발을 챙겼다.','good');render();note('원정에서 수류탄 +1');}
   if(e.end) e.end();
   m.away=0; S.exp=null; S.expCool=S.day+8; render();
   log(`해 질 무렵, ${J(m.name,'과와')} 함께 수도원 정문에 닿았다. 종탑 위에서 누군가 손을 흔들었다.`,'good');
@@ -1760,7 +1762,7 @@ function dfCreate(P,place){
   return {P,plan,weather:(P.seed%2?'snow':'moon'),t:0,si:0,z:[],wall:max,max,
     units:Object.entries(place.units).map(([id,s],i)=>({id,s,cd:.3+i*.25,fl:0,repair:false})),
     // 전투 중의 화염병·긴급 수리는 동일한 물자 예산을 공유한다.
-    supLeft:P.sup||0,repairSpent:0,repairOK:0,repairFail:0,repairAttempts:0,usedFire:0,
+    supLeft:P.sup||0,repairSpent:0,repairOK:0,repairFail:0,repairAttempts:0,usedFire:0,usedNades:0,
     traps:(place.traps||[]).map(x=>({x,uses:3})),trapTriggered:false,leaks:0,kills:0,fx:[],done:false,broke:false,shake:0};
 }
 function dfSpawn(st,e){
@@ -1851,10 +1853,10 @@ function dfStep(st,dt){
 }
 function dfResult(st){
   const lost= st.max>0 ? 1-st.wall/st.max : 1;
-  return {usedFire:st.usedFire||0,repairSpent:st.repairSpent,repairOK:st.repairOK,repairFail:st.repairFail,repairAttempts:st.repairAttempts,trapTriggered:!!st.trapTriggered,leaks:st.leaks,kills:st.kills,lost,N:st.plan.N,broke:st.broke?1:0,boss:st.bossSeen?(st.bossOut||'alive'):null,bq:st.bq||0,br:st.br||0};
+  return {usedNades:st.usedNades||0,usedFire:st.usedFire||0,repairSpent:st.repairSpent,repairOK:st.repairOK,repairFail:st.repairFail,repairAttempts:st.repairAttempts,trapTriggered:!!st.trapTriggered,leaks:st.leaks,kills:st.kills,lost,N:st.plan.N,broke:st.broke?1:0,boss:st.bossSeen?(st.bossOut||'alive'):null,bq:st.bq||0,br:st.br||0};
 }
 function dfThrow(st,kind,x){
-  if(kind==='nade'){ st.z.forEach(z=>{ if(z.hp>0&&!z.boss&&Math.abs(z.x-x)<=26){ z.hp-=8; z.hit=.25; } });
+  if(kind==='nade'){ st.usedNades=(st.usedNades||0)+1; st.z.forEach(z=>{ if(z.hp>0&&!z.boss&&Math.abs(z.x-x)<=26){ z.hp-=8; z.hit=.25; } });
     st.shake=.5; st.fx.push({k:'boom',x,y:156,t:.6,seed:Math.floor(x*7)},{k:'boom',x:x-9,y:160,t:.6,seed:Math.floor(x*3)},{k:'boom',x:x+9,y:152,t:.6,seed:Math.floor(x*5)}); }
   if(kind==='fire'){ if(st.supLeft<1)return false; st.supLeft--; st.usedFire++; st.fires=(st.fires||[]); st.fires.push({x,t:4.5}); st.fx.push({k:'boom',x,y:158,t:.5,seed:Math.floor(x*11)}); }
   return true;
@@ -2016,7 +2018,7 @@ function dfOpen(P,done){
   const inv={nade:P.nades||0, fire:P.fires||0}; ui.arm = inv.nade?'nade':inv.fire?'fire':null;
   let lastActSup=-1;
   const renderAct=()=>{ lastActSup=st.supLeft; if(ui.phase!=='run'){ act.innerHTML=''; return; }
-    act.innerHTML=`<button class="${ui.arm==='nade'?'on':''}" data-k="nade" ${inv.nade?'':'disabled'}>💣 수류탄 ×${inv.nade}</button><button class="${ui.arm==='fire'?'on':''}" data-k="fire" ${(inv.fire&&st.supLeft>0)?'':'disabled'}>🔥 화염병 ×${Math.min(inv.fire,st.supLeft)}</button><span>${ui.arm?`<b style="color:#ffd36b">👉 ${ui.arm==='nade'?'수류탄':'화염병'}: 감염자가 모인 눈밭을 누르세요</b>`:'던질 것이 없다'} · 🪵 물자 ${st.supLeft}</span>`;
+    act.innerHTML=`<button class="${ui.arm==='nade'?'on':''}" data-k="nade" ${inv.nade?'':'disabled'}>💣 수류탄 ×${inv.nade}</button><button class="${ui.arm==='fire'?'on':''}" data-k="fire" ${(inv.fire&&st.supLeft>0)?'':'disabled'}>🔥 화염병 · 물자 ×${st.supLeft}</button><span>${ui.arm?`<b style="color:#ffd36b">👉 ${ui.arm==='nade'?'수류탄':'화염병'}: 감염자가 모인 눈밭을 누르세요</b>`:'던질 것이 없다'} · 🪵 물자 ${st.supLeft}</span>`;
     act.querySelectorAll('button').forEach(b=>b.onclick=(ev)=>{ ev.stopPropagation(); ui.arm=b.dataset.k; renderAct(); }); };
   cv.onpointermove=(e)=>{ if(ui.phase==='run'&&ui.arm){ const p=L(e); ui.aim=p.x>=70&&p.y>=60?p:null; } };
   cv.onpointerdown=(e)=>{
@@ -2464,6 +2466,7 @@ function explore(p){
   change(g);
   note(`${p.n} 탐색${hurt?'(부상)':''}`);
   findItem();
+  if(chance(.045)){ S.grenades=(S.grenades||0)+1;log('💣 버려진 군용 수류탄 한 발을 발견했다.','good');render();note('탐색 중 수류탄 +1'); }
   if(checkDeath()) return;
   const after=()=>{ if(hurt && chance(.55)) return memoryTest(afterAction); afterAction(); };
   if(chance(.4)) return lockbox(p,after);
@@ -2535,6 +2538,7 @@ function archive(){
     if(right){
       log(pick(['정답이 가리킨 곳을 찾아가자, 마루 밑에서 기름종이에 싼 꾸러미가 나왔다.','은닉처는 정말 그 자리에 있었다. 고맙소, 대위.','벽돌 뒤에서 녹슨 철함이 나왔다. 안에는 통조림과 연료, 탄약이 가지런히 들어 있었다.']),'good');
       change({kn:1,food:rnd(1,3),sup:rnd(1,2)}); note('수첩을 풀어 은닉처를 찾았다');
+      if(chance(.05)){ S.grenades=(S.grenades||0)+1; log('💣 숨겨진 보급함에서 수류탄 한 발을 찾았다.','good');render();note('수첩에서 수류탄 +1'); }
       if(kind==='mc'){ const t=MC[idx].tac; if(t&&!S.tactics.has(t)){ log('수첩 여백에 대위가 남긴 메모가 있다. 역사 속 사람들이 살아남은 방법이었다.','info'); unlock(t);} }
     } else {
       log(pick(['엉뚱한 집의 지하실을 뒤지다 해가 기울었다. 허탕이다.','틀린 화물칸을 열었다. 안에서 무언가가 꿈틀거렸다. 황급히 문을 닫았다.','몇 시간을 눈밭에서 헤맸지만 아무것도 찾지 못했다.']),'bad');
@@ -2832,12 +2836,13 @@ function night(stance){
   sfx('thump');
   log(pick(APPROACH[p<=6?'s':p<=12?'m':'l'])+` <span class="sys">(습격 규모 ${p} / 방어력 ${dp})</span>`,'story');
   const units=['me',...S.squad.map(m=>m.id)].filter(u=>u==='me'?!S.quarantine:ok(u));
-  const P={nades:2,fires:Math.min(3,S.sup),sup:S.sup,p,dp,nt,bruteHit,boss:!!S.bigWave,traps,units,known:S.known||S.tactics.has('enigma'),radio:ok('jack'),seed:(Date.now()+S.day*7919)%2147483647};
+  const P={nades:S.grenades||0,fires:S.sup,sup:S.sup,p,dp,nt,bruteHit,boss:!!S.bigWave,traps,units,known:S.known||S.tactics.has('enigma'),radio:ok('jack'),seed:(Date.now()+S.day*7919)%2147483647};
   const big = S.bigWave || nt==='brute' || nt==='hunter' || p>=14 || !S.flags.dfTut;
   if(big){ S.flags.dfTut=true; log(S.bigWave?'🗿 땅이 울린다. 이번 습격은 다르다. 모두 자리로!':'⚔️ 큰 습격이다! 모두 자리로!','bad'); } else P.auto=true;
   dfOpen(P,res=>nightResult(res,p,dp,nt,bruteHit));
 }
 function nightResult(res,p,dp,nt,bruteHit){
+  if(res.usedNades){ S.grenades=Math.max(0,(S.grenades||0)-res.usedNades);log(`💣 수류탄 ${res.usedNades}개 사용 · 남은 수류탄 ${S.grenades}개`,'sys');render(); }
   if(res.trapTriggered && S.trap>0){ S.trap--; log(`🪤 함정이 발동했다. 남은 사용 ${S.trap}회${S.trap===0?' · 함정 소진':''}`,'info'); }
   const spend=(res.usedFire||0)+(res.repairSpent||0);
   if(spend) change({sup:-spend});
