@@ -178,6 +178,8 @@ th{color:var(--dim);font-weight:400}
     <label for="nameInput">생존자 닉네임 또는 교사가 배정한 고유 코드 (공용 랭킹에 표시됩니다)</label>
     <input id="nameInput" maxlength="20" placeholder="예: 아르덴17 / R17">
     <button class="primary" id="startBtn">1945년 1월 29일, 생존을 시작한다</button>
+    <button class="hidden" id="continueBtn" style="margin-top:8px">💾 저장된 도전 이어하기</button>
+    <p class="sys" id="continueInfo" style="font-size:12px"></p>
     <h3 style="margin-top:24px">생존 랭킹 <span class="sys" id="rankSrc"></span></h3><p class="sys" style="font-size:12px">정렬: 생존 일수 → 누적 획득 지식 → 남은 식량 → 남은 물자 (모두 높은 순)</p>
     <div id="rankBox" class="rules">아직 기록이 없습니다.</div>
   </section>
@@ -191,7 +193,7 @@ th{color:var(--dim);font-weight:400}
       <div class="stat" title="바리케이드·참호의 내구도. 밤마다 습격 규모와 비교되고, 공격받으면 무너진다."><span class="k">🛡️ 방어선</span><b class="v" id="sDef"></b></div>
       <div class="stat" title="역사 문제를 맞힐 때마다 쌓인다. 누적량에 따라 배움 단계(Lv)가 올라 탐색·공사·물자 효율이 좋아진다. 문제를 풀 때 지식 1로 오답 하나를 지우거나 첫 글자를 볼 수 있다(써도 단계는 내려가지 않는다)."><span class="k">📜 지식</span><b class="v" id="sKn"></b></div>
     </div>
-    <div class="toolbar"><button class="tbtn" id="btnMates">👥 동료</button><button class="tbtn" id="btnTac">★ 전술·업적</button><button class="tbtn warn" id="btnQuit" title="현재 도전 종료 후 생존 일수 자동 기록">⏹ 기록·종료</button><span class="forecast" id="forecast"></span></div>
+    <div class="toolbar"><button class="tbtn" id="btnMates">👥 동료</button><button class="tbtn" id="btnTac">★ 전술·업적</button><button class="tbtn" id="btnSave" title="오전·오후 행동 선택 화면에서 저장 후 나가기">💾 저장 후 나가기</button><button class="tbtn warn" id="btnQuit" title="현재 도전 종료 후 생존 일수 자동 기록">⏹ 기록·종료</button><span class="forecast" id="forecast"></span></div>
     <div id="logWrap"><div id="log"></div><button id="moreHint" class="hidden">▼ 아래에 이어지는 내용이 있어요</button></div>
     <div id="choices"></div>
   </section>
@@ -578,6 +580,55 @@ const CALENDAR = {
 /* ================= 상태 · 도구 ================= */
 let S;
 const $ = id => document.getElementById(id);
+/* ================= 이어하기: 행동 선택 화면에서만 안전하게 보관 =================
+   선택/전투의 콜백은 직렬화할 수 없어 저장 지점을 오전·오후 행동 선택에 한정한다.
+   이어할 때 저장 슬롯을 먼저 소비한다. 개발자 도구로 로컬 저장소를 조작하는 것까지는 막을 수 없다. */
+const CONTINUE_KEY='RS1945_CONTINUE_V1';
+function readContinue(){
+  try {
+    const d=JSON.parse(localStorage.getItem(CONTINUE_KEY)||'null');
+    if(!d||d.version!==1||d.phase!=='day'||!d.state||!d.state.day||d.state.dead||d.state.ended||typeof d.state.name!=='string'||!d.log) return null;
+    return d;
+  }catch(e){return null;}
+}
+function clearContinue(){try{localStorage.removeItem(CONTINUE_KEY);}catch(e){} refreshContinueButton();}
+function refreshContinueButton(){
+  const btn=$('continueBtn'),info=$('continueInfo');
+  if(!btn||!info)return;
+  const d=readContinue();btn.classList.toggle('hidden',!d);
+  info.textContent=d?`저장된 도전: ${d.state.name} · ${d.state.day}일째 (이 기기·현재 브라우저에서만 가능)`:'';
+}
+function updateSaveButton(){
+  const btn=$('btnSave');if(!btn)return;
+  btn.disabled=!(S&&!S.dead&&S.resumePoint==='day'&&!S.exp);
+  btn.title=btn.disabled?'오전·오후의 행동 선택 화면에서만 저장할 수 있습니다':'현재 진행 상황을 저장하고 첫 화면으로 돌아갑니다';
+}
+function saveAndLeave(){
+  if(!S||S.dead||S.exp||S.resumePoint!=='day')return;
+  const state=JSON.parse(JSON.stringify(S,(k,v)=>v instanceof Set?{__saveSet:[...v]}:v));
+  // 평소 진행에 필요한 정보만 저장. 실행 중인 콜백이나 화면 노드는 저장하지 않는다.
+  const payload={version:1,phase:'day',state,log:$('log').innerHTML,savedAt:Date.now()};
+  try{localStorage.setItem(CONTINUE_KEY,JSON.stringify(payload));}
+  catch(e){alert('기기에 저장하지 못했습니다. 브라우저 저장 공간·시크릿 모드를 확인하세요.');return;}
+  if(!readContinue()){alert('저장 결과를 확인하지 못했습니다.');return;}
+  S=null;$('choices').innerHTML='';$('gameScreen').classList.add('hidden');document.body.classList.remove('ingame');
+  $('startScreen').classList.remove('hidden');$('btnRec').classList.add('hidden');$('dateLabel').textContent='';$('dayLabel').textContent='';
+  refreshContinueButton();renderRanks();
+}
+function resumeSavedGame(){
+  const d=readContinue();if(!d){alert('이어할 수 있는 저장 기록이 없습니다.');refreshContinueButton();return;}
+  let state;
+  try{state=JSON.parse(JSON.stringify(d.state),(k,v)=>v&&typeof v==='object'&&Array.isArray(v.__saveSet)?new Set(v.__saveSet):v);}
+  catch(e){alert('저장된 진행 기록을 읽을 수 없습니다.');return;}
+  // 불러오기 전에 슬롯을 소비하여 같은 저장점을 여러 번 이용하지 못하게 한다.
+  try{localStorage.removeItem(CONTINUE_KEY);}catch(e){alert('저장 기록을 소비하지 못했습니다. 다른 브라우저 설정을 확인하세요.');return;}
+  S=state;S.resumePoint=null;
+  $('nameInput').value=S.name;
+  $('startScreen').classList.add('hidden');$('endScreen').classList.add('hidden');$('gameScreen').classList.remove('hidden');
+  document.body.classList.add('ingame');$('btnRec').classList.remove('hidden');
+  $('log').innerHTML=d.log;
+  render();dayPhase();refreshContinueButton();
+}
 const rnd = (a,b) => Math.floor(Math.random()*(b-a+1))+a;
 const chance = p => Math.random() < p;
 const pick = a => a[Math.floor(Math.random()*a.length)];
@@ -674,7 +725,7 @@ function choices(list, cls=''){
     if(c.cls) b.className=c.cls;
     if(c.disabled) b.disabled=true;
     b.innerHTML=c.label+(c.sub?`<span class="sub">${c.sub}</span>`:'');
-    b.onclick=()=>{ box.innerHTML=''; box.className=''; typeSkip=true; setTimeout(()=>typeSkip=false,30);
+    b.onclick=()=>{ if(S){S.resumePoint=null;updateSaveButton();} box.innerHTML=''; box.className=''; typeSkip=true; setTimeout(()=>typeSkip=false,30);
       if(S&&S.evName){ const t=document.createElement('div'); t.innerHTML=c.label; note(`${S.evName}: ${t.textContent.trim()}`); S.evName=null; S.evPick=list.indexOf(c); }
       c.fn(b); };
     box.appendChild(b);
@@ -692,6 +743,7 @@ function knLv(){ const t=S.knTotal||0; return KNOW.filter(k=>t>=k.at).length; }
 function heatNeed(){ return season()==='winter' ? 1 : 0; }
 function render(){
   if(S.day>0){$('dateLabel').textContent=dateStr(); $('dayLabel').textContent=`생존 ${S.day}일째${S.day>=REVEAL_DAY?' · 🕊️ 종전을 향해':''}`;}
+  $('btnQuit').disabled=S.day<3||!!S.dead;
   $('sHp').textContent=S.hp; $('sMo').textContent=S.mo;
   $('bHp').style.width=S.hp+'%'; $('bMo').style.width=S.mo+'%';
   $('bHp').style.background=S.hp<30?'var(--red)':'var(--green)';
@@ -2213,6 +2265,8 @@ Object.assign(EPILOG_EXTRA,{
 
 /* ================= 하루의 흐름 ================= */
 function startGame(){
+  if(readContinue()&&!confirm('이 기기에 저장된 진행 중인 도전이 있습니다. 새로 시작하면 기존 저장 기록이 삭제됩니다. 계속하시겠습니까?'))return;
+  clearContinue();
   const name=$('nameInput').value.trim()||'익명'+Math.floor(1000+Math.random()*9000);
   S=newState(name);
   $('startScreen').classList.add('hidden'); $('endScreen').classList.add('hidden'); $('gameScreen').classList.remove('hidden'); document.body.classList.add('ingame'); $('btnRec').classList.remove('hidden');
@@ -2233,7 +2287,7 @@ const MORNING = {
 };
 
 function morning(){
-  S.day++; S.known=false; S.actLeft=2; S.slotLog=null; S.todayActs=[]; S.request=null; S.reqDone=false;
+  S.day++; S.known=false; S.actLeft=2; S.slotLog=null; S.todayActs=[]; S.request=null; S.reqDone=false;S.resumePoint=null;updateSaveButton();
   render();
   const d=curDate(); const key=iso(d); const ss=season();
   if(key===END_KEY) return peaceEnding();
@@ -2362,6 +2416,7 @@ function dayPhase(){
     {label:'🧭 원정 떠나기',sub:canExpedite()?'2~3일 거점을 비우고 먼 곳의 보급과 사람을 찾는다':(S.exp?'':S.actLeft<2?'원정은 오전에만 떠날 수 있다':S.day<6?'6일째부터 가능':(S.day<(S.expCool||0)?`다음 원정은 ${S.expCool}일째부터`:'함께 갈 동료가 부족하다')),fn:expPick,disabled:!canExpedite()},
     {label:'🔭 종탑 정찰',sub:S.known||S.tactics.has('enigma')?'오늘 밤 규모는 이미 파악했다':`${tag('scout')}오늘 밤 습격 규모를 정확히 파악 + 작은 수확`,fn:()=>{didAct('scout');scout();},disabled:S.known||S.tactics.has('enigma')},
   ]);
+  S.resumePoint='day';updateSaveButton();
 }
 
 /* ---- 탐색 ---- */
@@ -2999,15 +3054,16 @@ function peaceEnding(){
   },'🔔 종을 울린다');
 }
 function gameOver(kind){
-  S.dead=true; $('choices').innerHTML=''; checkAch();
-  if(kind!=='peace'){ closeDay(kind==='hp'?'기록이 여기서 끊겼다':'모두가 흩어졌다'); vignette(); }
+  if(!S||S.dead)return;
+  S.dead=true;clearContinue();$('choices').innerHTML='';updateSaveButton();checkAch();
+  if(kind!=='peace'){ closeDay(kind==='quit'?'스스로 도전을 마무리했다':kind==='hp'?'기록이 여기서 끊겼다':'모두가 흩어졌다'); vignette(); }
   const hpCause = S.food<=0 ? '굶주림 — 식량이 바닥났다' : S.def<=0 ? '방어선 붕괴 — 밤의 습격' : (S.sup<=0 && season()==='winter') ? '추위와 부상 — 땔감이 바닥났다' : '부상 — 습격과 탐색에서 입은 상처';
   const cause = kind==='peace' ? '🕊️ 생존 완료 — 종전까지 살아남았다' : kind==='quit' ? '도전 종료 — 현재 날짜까지의 기록 제출' : kind==='hp' ? hpCause : '절망 — 무리가 흩어졌다';
   if(kind!=='peace') log(kind==='quit'?'생존 기록을 여기서 마친다. 다음 도전에서는 더 오래 버틸 수 있을까?':kind==='hp'?'시야가 하얗게 흐려진다. 눈송이가 얼굴 위로 내려앉는다. 그리고, 고요.':'희망을 잃은 사람들이 하나둘 떠났다. 당신은 텅 빈 수도원에 홀로 남았다.','bad');
   const days=calDays(), rate=S.total?Math.round(S.correct/S.total*100):0;
   const rec={runId:S.runId,name:S.name,days,date:dateShort(),cause,rate,clear:kind==='peace',knowledge:Math.max(0,Math.floor(S.knTotal||0)),food:Math.max(0,Math.floor(S.food)),sup:Math.max(0,Math.floor(S.sup))};
   autoSendRank(rec);
-  const title = kind==='peace' ? (aliveMates().length===4?'모두를 지켜 낸 종전의 증인':'종전의 증인') : days>=150?'붉은 눈의 전설':days>=100?'두 번의 계절을 넘긴 자':days>=60?'봄을 맞은 생존자':days>=30?'아르덴의 겨울을 버틴 자':days>=14?'노련한 연락원':days>=7?'첫 주를 넘긴 자':'첫눈의 희생자';
+  const title = kind==='quit'?'자신의 기록을 남긴 생존자':kind==='peace' ? (aliveMates().length===4?'모두를 지켜 낸 종전의 증인':'종전의 증인') : days>=150?'붉은 눈의 전설':days>=100?'두 번의 계절을 넘긴 자':days>=60?'봄을 맞은 생존자':days>=30?'아르덴의 겨울을 버틴 자':days>=14?'노련한 연락원':days>=7?'첫 주를 넘긴 자':'첫눈의 희생자';
   setTimeout(async()=>{
     $('gameScreen').classList.add('hidden');
     const e=$('endScreen'); e.classList.remove('hidden');
@@ -3017,7 +3073,7 @@ function gameOver(kind){
     const mine=all.find(r=>r.name.toLocaleLowerCase('ko')===rec.name.toLocaleLowerCase('ko'));
     const pos=mine?rankPlace(all,mine):'-';
     e.innerHTML=`
-      <h2>${kind==='peace'?'🕊️ 1945년 5월 8일, 전쟁이 끝났다 — 그리고 냉전이 시작되었다':`☠ ${dateStr()}, 기록이 멈췄다`}</h2>
+      <h2>${kind==='peace'?'🕊️ 1945년 5월 8일, 전쟁이 끝났다 — 그리고 냉전이 시작되었다':kind==='quit'?`📝 ${dateStr()}, 기록을 마쳤다`:`☠ ${dateStr()}, 기록이 멈췄다`}</h2>
       <p class="gold" style="font-size:20px;font-weight:900;font-family:'Noto Serif KR',serif">칭호: ${title}</p>
       ${S.lastNews?`<p class="story">당신이 마지막으로 들은 라디오 소식: ${esc(S.lastNews)}</p>`:''}
       <table>
@@ -3063,7 +3119,10 @@ function renderAchBox(){ const st=achStore(); const b=$('achBox'); if(!b) return
   b.innerHTML=`<p><b>🏅 이 기기의 업적 ${st.size} / ${Object.keys(ACH).length}</b></p><p>${Object.entries(ACH).map(([k,a])=>st.has(k)?`<span class="tag" title="${a.d}">🏅 ${a.n}</span>`:`<span class="tag off" title="${a.d}">🔒 ${a.n}</span>`).join(' ')}</p>`; }
 renderAchBox();
 $('startBtn').onclick=startGame;
-$('btnQuit').onclick=()=>{if(!S||S.dead||S.day<1)return;if(confirm(`현재 ${S.day}일째까지의 생존 기록을 남기고 이번 도전을 끝내시겠습니까?\n종료하면 이 판은 다시 이어할 수 없습니다.`)) gameOver('quit');};
+$('continueBtn').onclick=resumeSavedGame;
+$('btnSave').onclick=saveAndLeave;
+refreshContinueButton();
+$('btnQuit').onclick=()=>{if(!S||S.dead||S.day<3)return;if(confirm(`현재 ${S.day}일째까지의 생존 기록을 남기고 이번 도전을 끝내시겠습니까?\n종료하면 이 판은 다시 이어할 수 없습니다.`)) gameOver('quit');};
 $('btnRec').onclick=()=>openRecord('journal');
 $('btnMates').onclick=()=>openRecord('mates');
 $('btnTac').onclick=()=>openRecord('tac');
