@@ -170,7 +170,7 @@ th{color:var(--dim);font-weight:400}
       <p><b>긴급 수리</b> — 조피아가 동료라면 밤 전투에서 <b>수리 모드</b>로 전환할 수 있다. 수리 중에는 사격하지 않으며, 한 번 시도할 때마다 물자 1을 소모한다. 성공률은 기본 70%, 바리케이드 배치 시 80%이고, 실패해도 물자를 잃는다. 한밤중 최대 2회까지 시도할 수 있다. 마리는 응급처치를 맡는다.</p>
        <p><b>하루 두 번</b> — 낮에는 오전·오후에 한 가지씩, 두 번 행동할 수 있다. <b>같은 일은 하루에 한 번만</b> 할 수 있고, 아침마다 동료가 📌 부탁을 한다. 들어주면 보상과 신뢰를 얻는다.</p>
       <p><b>지식</b> — 역사 문제를 맞힐 때마다 <b>+1</b> 쌓인다(사령부 교신·동료 이야기·사료 확인 문제는 보너스 +1). 쌓인 만큼 배움 단계가 올라 공사·탐색·물자 효율이 좋아지고(참호전의 교훈 → 총력전의 배급 → 레지스탕스의 길 → 전시 물자 관리 → 대서양 헌장의 연대), 문제를 풀 때 지식 1로 도움을 받을 수 있다.</p>
-      <p><b>버티기</b> — 겨울에는 땔감(물자)이 없으면 얼어붙고, 날이 갈수록 탐색할 곳은 바닥나고 공포는 깊어진다. 체력 0 또는 사기 0이 되면 끝. 랭킹은 <b>버틴 날 수</b>로 매긴다.</p>
+      <p><b>버티기</b> — 겨울에는 땔감(물자)이 없으면 얼어붙고, 날이 갈수록 탐색할 곳은 바닥나고 공포는 깊어진다. <b>은신은 반복할수록 들킬 위험이 커지고, 쓰지 않은 날에는 그대로 유지된다.</b> 체력 0 또는 사기 0이 되면 끝. 랭킹은 <b>버틴 날 수</b>를 최우선으로 매긴다.</p>
     </div>
     <div id="champBox"></div>
     <div id="achBox" class="rules"></div>
@@ -490,7 +490,7 @@ const TACTICS = {
   buffer:{name:'대서양 헌장의 연대',desc:'밤 습격 규모 -1'},
   trench:{name:'참호전의 교훈',desc:'참호 공사 방어선 +2, 방어선이 덜 무너짐'},
   ration:{name:'총력전 배급제',desc:'3일마다 식량을 소비하지 않음'},
-  gandhi:{name:'레지스탕스의 은신술',desc:'"불 끄고 숨기" 성공률 +20%p'},
+  gandhi:{name:'레지스탕스의 은신술',desc:'"불 끄고 숨기" 성공 가능성이 크게 높아진다'},
   newdeal:{name:'뉴딜의 공공사업',desc:'방어 공사 물자 1 절약'},
   resist:{name:'노르망디의 정찰',desc:'탐색 중 부상 확률 감소'},
   enigma:{name:'에니그마 해독',desc:'밤 습격 규모를 항상 정확히 앎 · 방어력 +1'},
@@ -611,7 +611,7 @@ const CHOSUNG='ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ';
 function toCho(s){return [...s].map(ch=>{const c=ch.charCodeAt(0); return (c>=0xAC00&&c<=0xD7A3)?CHOSUNG[Math.floor((c-0xAC00)/588)]:ch;}).join('');}
 
 function newState(name){
-  return {name, runId:'run_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,12), day:0, hp:70, mo:55, food:5, sup:5, def:3, kn:0, quarantine:false,
+  return {name, runId:'run_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,12), day:0, hp:70, mo:55, food:5, sup:5, def:3, kn:0, hideUses:0, quarantine:false,
     squad:makeSquad(), tactics:new Set(), trap:0, nextAttack:0, known:false,
     used:{mc:new Set(),ox:new Set(),cho:new Set(),ord:new Set()}, posBag:[], oxBag:[], evUsed:[],
     missed:[], correct:0, total:0, dead:false, lastNews:'',
@@ -913,7 +913,7 @@ const ARCS = {
    choices:[
     {label:'허락하고 함께 지킨다',bond:{marie:2},sub:'위험 · 연구가 시작된다',fx:{hp:-6},flag:'research',res:'밤새 사슬이 철커덕거렸다. 마리는 촛불 아래서 공책을 빼곡히 채웠다.',note:'마리의 감염자 관찰을 허락했다'},
     {label:'"너무 위험해요."',bond:{marie:-1},res:'마리는 공책을 덮었다. "언젠가는 누군가 해야 할 일이에요."',note:'마리의 연구를 막았다'}]},
-  {d:'1945-02-18',need:()=>S.flags.research,lines:['마리가 공책을 펼쳐 보였다. "기억은 가장 최근 것부터 사라져요. 그리고 놈들은 빛을 보면 동공이 바늘처럼 오므라들어요. 빛이 놈들을 부르는 게 아니라, 아프게 하는 거예요."','"숨을 때 창마다 젖은 천을 걸면 더 오래 들키지 않을 거예요."'],flag:'hideBoost',note:'마리가 감염자의 비밀 하나를 알아냈다',res:'🕯️ "불 끄고 숨기" 성공률 +10%p'},
+  {d:'1945-02-18',need:()=>S.flags.research,lines:['마리가 공책을 펼쳐 보였다. "기억은 가장 최근 것부터 사라져요. 그리고 놈들은 빛을 보면 동공이 바늘처럼 오므라들어요. 빛이 놈들을 부르는 게 아니라, 아프게 하는 거예요."','"숨을 때 창마다 젖은 천을 걸면 더 오래 들키지 않을 거예요."'],flag:'hideBoost',note:'마리가 감염자의 비밀 하나를 알아냈다',res:'🕯️ 이제 불을 끄고 숨을 때 들킬 위험이 줄어든다'},
   {d:'1945-02-27',need:()=>ok('leon'),lines:['마리가 레온 앞에 엽서 한 장을 내밀었다. "국제 적십자에는 실종자를 찾아 주는 부서가 있어요. 포로든 피난민이든. 누이분의 이름을 써 보세요."','레온은 펜을 쥔 채 한참을 움직이지 못했다. 그리고 천천히, 한 글자씩 적었다. 한나 바이스.'],flag:'redcross',item:'rccard',note:'레온이 적십자에 누이를 찾는 엽서를 썼다'},
   {d:'1945-04-29',win:3,lines:['마리가 라디오에 귀를 바짝 댔다. "오늘 프랑스에서 여성들이 처음으로 투표해요. 엄마도 지금쯤 투표소 줄에 서 있을 거예요."','"1차 대전 때 군수 공장에서 포탄을 만들던 할머니는 끝내 못 해 본 일이에요."'],fx:{mo:6},item:'vote',note:'프랑스 여성이 처음 투표한 날, 마리가 웃었다'},
   {d:'1945-05-26',lines:['적십자 무전으로 마리에게 소식이 왔다. 약혼자 피에르가 독일의 포로수용소에서 풀려나 파리로 돌아왔다고.','마리는 웃다가 울다가, 그래도 붕대를 감던 손은 멈추지 않았다.'],fx:{mo:8},note:'마리의 약혼자 피에르가 살아 돌아왔다'},
@@ -2679,7 +2679,9 @@ function checkpoint(done){
 
 /* ================= 밤 ================= */
 const DUSK = ['해가 숲 너머로 넘어간다. 눈 덮인 들판이 다시 붉은빛으로 물든다.','그림자가 길어질수록 숲에서 들리는 울음소리가 가까워진다.','에밀이 사냥총의 노리쇠를 당겼다. 철컥. 모두가 그 소리에 정신을 차렸다.','마리가 남은 양초를 세었다. 오늘 밤은 몇 개를 켤 수 있을까.','잭이 무전기의 다이얼을 천천히 돌린다. 잡음뿐이다.'];
-function hideRate(){ return clamp(40 - Math.floor(Math.min(S.day,60)*0.8) + (S.tactics.has('gandhi')?20:0) + (S.flags.hideBoost?10:0) + (ok('ibra')?10:0), 15, 85); }
+// 은신의 기본 성공률은 50%로 시작한다. 시도할 때마다 다음 시도의 기본 성공률이 5%p 낮아진다.
+// 하루가 지나는 것만으로는 감소하거나 회복하지 않는다. 전술·동료 보너스는 기존대로 적용한다.
+function hideRate(){ const base=Math.max(10,50-5*(S.hideUses||0)); return clamp(base + (S.tactics.has('gandhi')?20:0) + (S.flags.hideBoost?10:0) + (ok('ibra')?10:0), 10, 85); }
 function dusk(){
   log(`— ${dateStr()} 해 질 녘 —`,'head');
   if(S.request && !S.reqDone){ const m=mate(S.request.who); if(m.alive){ log(`${J(m.name.split(' ')[0],'이가')} 아무 말 없이 고개를 돌렸다. 오늘의 부탁은 끝내 들어주지 못했다.`,'sys'); bond(S.request.who,-1,true); } S.request=null; }
@@ -2701,7 +2703,7 @@ function dusk(){
   log(`${front}<br>${hide}<br>${fire}`,'story');
   const showStance=()=>choices([
     {label:'🔫 정면으로 막는다',sub:`방어력 ${defPower()} (${defParts()})로 맞선다 · 막아도 방어선이 닳는다`,fn:()=>night('front')},
-    {label:'🕯️ 불을 끄고 숨는다',sub:(S.nightType==='hunter'&&known)?'⚠️ 사냥꾼은 냄새로 찾아낸다 · 숨어도 들킨다':`들키지 않을 확률 ${hideRate()}% · 들키면 방어력이 절반으로 떨어진다`,fn:()=>night('hide')},
+    {label:'🕯️ 불을 끄고 숨는다',sub:(S.nightType==='hunter'&&known)?'⚠️ 사냥꾼은 냄새로 찾아낸다 · 숨어도 들킨다 · 시도하면 다음 은신이 어려워진다':'성공하면 전투 회피 · 실패하면 방어력 절반 · 숨을수록 다음 시도가 어려워진다',fn:()=>night('hide')},
     {label:'🔥 화염병으로 먼저 친다',sub:'물자 1 소모 → 습격 규모 -3 · 불빛이 다른 무리를 부를 수도 있다',disabled:S.sup<1,fn:()=>night('fire')},
   ]);
   if(S.nightType==='voice' && S.nextAttack>0) voiceScene(showStance); else showStance();
@@ -2742,6 +2744,10 @@ function injureMate(gap){
   render();
 }
 function night(stance){
+  // 이번 은신은 선택 직전의 확률로 판정하고, 사용 기록은 곧바로 누적한다.
+  // 성공·실패·사냥꾼·습격 없는 밤 모두 은신 시도 1회로 계산한다.
+  const hideChance=stance==='hide'?hideRate()/100:0;
+  if(stance==='hide') S.hideUses=(S.hideUses||0)+1;
   log(`— ${dateStr()} 밤 —`,'head');
   let p=S.nextAttack;
   if(stance==='fire'){ change({sup:-1});
@@ -2763,7 +2769,7 @@ function night(stance){
     log('불을 모두 끄고 숨을 죽였다. 눈 밟는 소리가 창문 바로 아래를 지나간다…','story');
     if(nt==='hunter' && ok('ibra')){ log('이브라히마가 문틈과 창틀에 재와 눈을 문질러 냄새를 지워 두었다. 사냥꾼은 코를 킁킁대다 지나쳐 갔다.','good'); note('밤: 사냥꾼을 따돌렸다'); change({mo:3}); return endNight(); }
     if(nt==='hunter'){ log('발소리가 창문 앞에서 멈췄다. 킁, 킁. 냄새를 맡는 소리. 사냥꾼이다. 놈이 정확히 이쪽을 향해 울부짖었다!','bad'); dp=Math.floor(dp/2); }
-    else if(chance(hideRate()/100)){ note('밤: 숨어서 넘겼다'); log(pick(['놈들은 냄새를 맡는 듯 고개를 돌리다가, 그대로 지나쳐 갔다.','누군가 기침을 참느라 입을 틀어막았다. 발소리가 멀어졌다.']),'good'); change({mo:2}); return endNight(); }
+    else if(chance(hideChance)){ note('밤: 숨어서 넘겼다'); log(pick(['놈들은 냄새를 맡는 듯 고개를 돌리다가, 그대로 지나쳐 갔다.','누군가 기침을 참느라 입을 틀어막았다. 발소리가 멀어졌다.']),'good'); change({mo:2}); return endNight(); }
     else { log('그때, 누군가의 발에 빈 깡통이 차였다. 수십 개의 눈이 일제히 이쪽을 향했다!','bad');
     dp=Math.floor(dp/2); }
   }
