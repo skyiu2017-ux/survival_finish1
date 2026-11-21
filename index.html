@@ -167,6 +167,7 @@ th{color:var(--dim);font-weight:400}
       <p><b>하루의 흐름</b> — 아침 라디오 → 낮에 행동 2가지(오전·오후) → 해 질 녘 밤 대비 → 감염자 습격. 날짜는 실제 1945년 달력을 따라 하루씩 흐르고, 실제 역사 소식이 라디오로 들려온다.</p>
       <p><b>동료와 기록</b> — 여덟 명의 생존자 가운데 <b>네 명이 판마다 무작위로</b> 함께한다. 동료마다 능력과 이야기가 다르다. 당신의 선택이 그 이야기를 바꾼다. 하루하루는 <b>생존 일지</b>에, 주운 시대의 자료는 <b>사료 도감</b>에 남는다.</p>
       <p><b>알아 둘 것</b> — 등장인물(동료 여덟 명과 헤이스팅스 대위)과 열병·감염자는 지어낸 이야기이고, 라디오로 들려오는 전쟁 소식과 문제는 실제 역사이다.</p>
+      <p><b>밤의 날씨와 탐색</b> — 밤마다 하늘이 변한다. 달빛 없는 흐린 밤은 숨기 좋지만 화염병 불빛은 더 눈에 띈다. 반복해서 탐색한 장소는 남은 자원이 줄며, 바스토뉴 보급창 원정은 한 번만 성공적으로 방문할 수 있다.</p>
       <p><b>전투 투척물</b> — 수류탄은 처음 3개만 주어지며, 쓰면 없어지고 탐색·수첩·원정에서 드물게 찾아야 한다. 화염병은 별도 재고가 아니라 <b>현재 물자 1개를 소비</b>해 던진다. 전투에서 두 버튼 중 하나를 선택하고 감염자가 모인 눈밭을 누르자.</p>
       <p><b>방어 공사</b> — 바리케이드는 빠르고 저렴하다. 참호와 모래주머니는 물자가 더 들지만 방어선을 크게 강화한다. 함정은 한 번 설치하면 실제 발동한 밤 기준 최대 2회 유지되며, 아무도 오지 않거나 은신에 성공한 밤에는 소모되지 않는다.</p>
       <p><b>긴급 수리</b> — 조피아가 동료라면 밤 전투에서 <b>수리 모드</b>로 전환할 수 있다. 수리 중에는 사격하지 않으며, 한 번 시도할 때마다 물자 1을 소모한다. 성공률은 기본 70%, 바리케이드 배치 시 80%이고, 실패해도 물자를 잃는다. 한밤중 최대 2회까지 시도할 수 있다. 마리는 응급처치를 맡는다.</p>
@@ -664,7 +665,7 @@ const CHOSUNG='ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ';
 function toCho(s){return [...s].map(ch=>{const c=ch.charCodeAt(0); return (c>=0xAC00&&c<=0xD7A3)?CHOSUNG[Math.floor((c-0xAC00)/588)]:ch;}).join('');}
 
 function newState(name){
-  return {name, runId:'run_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,12), day:0, hp:70, mo:55, food:5, sup:5, def:3, kn:0, grenades:3, hideUses:0, quarantine:false,
+  return {name, runId:'run_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,12), day:0, hp:70, mo:55, food:5, sup:5, def:3, kn:0, grenades:3, hideUses:0, darkNight:false, exploreVisits:{}, quarantine:false,
     squad:makeSquad(), tactics:new Set(), trap:0, nextAttack:0, known:false,
     used:{mc:new Set(),ox:new Set(),cho:new Set(),ord:new Set()}, posBag:[], oxBag:[], evUsed:[],
     missed:[], correct:0, total:0, dead:false, lastNews:'',
@@ -1373,7 +1374,7 @@ function suspectsEvent(done){
 
 /* ================= 원정 ================= */
 const EXPED = {
-  bastogne:{n:'바스토뉴 미군 보급창',days:2,d:'포위가 풀린 바스토뉴. 미군이 남기고 간 보급창이 있다는 소문이다.',need:()=>iso(curDate())>='1944-12-27',
+  bastogne:{n:'바스토뉴 미군 보급창',days:2,d:'포위가 풀린 바스토뉴. 미군이 남기고 간 보급창이 있다는 소문이다. 한 번 털어낸 뒤에는 다시 채워지지 않는다.',need:()=>iso(curDate())>='1944-12-27'&&!S.flags.bastogneLooted,
     stages:[
       {t:['눈 덮인 N4 도로. 불탄 셔먼 전차 옆에서 길이 두 갈래로 나뉜다.'],paths:[
         {label:'숲길로 돌아간다',sub:'느리지만 안전하다',fx:{mo:-2},res:'발이 푹푹 빠지는 숲길을 반나절 걸었다. 아무것도 마주치지 않았다.'},
@@ -1483,6 +1484,7 @@ function baseNight(){
 }
 function expEnd(){
   const e=EXPED[S.exp.k], m=mate(S.exp.who);
+  if(S.exp.k==='bastogne'){S.flags.bastogneLooted=true;log('바스토뉴의 보급창은 비었다. 이제 다른 원정지를 찾아야 한다.','info');}
   if(chance(.18)){S.grenades=(S.grenades||0)+1;log('💣 귀로에 방치된 군용 수류탄 한 발을 챙겼다.','good');render();note('원정에서 수류탄 +1');}
   if(e.end) e.end();
   m.away=0; S.exp=null; S.expCool=S.day+8; render();
@@ -1759,7 +1761,7 @@ function dfDefault(units){
 }
 function dfCreate(P,place){
   const plan=dfPlan(P); const max=P.dp*DFK.w;
-  return {P,plan,weather:(P.seed%2?'snow':'moon'),t:0,si:0,z:[],wall:max,max,
+  return {P,plan,weather:(P.darkNight?'snow':(P.seed%2?'snow':'moon')),t:0,si:0,z:[],wall:max,max,
     units:Object.entries(place.units).map(([id,s],i)=>({id,s,cd:.3+i*.25,fl:0,repair:false})),
     // 전투 중의 화염병·긴급 수리는 동일한 물자 예산을 공유한다.
     supLeft:P.sup||0,repairSpent:0,repairOK:0,repairFail:0,repairAttempts:0,usedFire:0,usedNades:0,
@@ -2289,7 +2291,7 @@ const MORNING = {
 };
 
 function morning(){
-  S.day++; S.known=false; S.actLeft=2; S.slotLog=null; S.todayActs=[]; S.request=null; S.reqDone=false;S.resumePoint=null;updateSaveButton();
+  S.day++; S.known=false; S.actLeft=2; S.slotLog=null; S.todayActs=[]; S.request=null; S.reqDone=false;S.resumePoint=null;updateSaveButton();S.darkNight=chance(.30);
   render();
   const d=curDate(); const key=iso(d); const ss=season();
   if(key===END_KEY) return peaceEnding();
@@ -2441,25 +2443,25 @@ const HURT_LINES = [
   '문을 열자마자 악취와 함께 손들이 뻗어 나왔다. 문을 걷어차 닫고 물러났다.',
 ];
 const SAFE_LINES = ['숨소리마저 죽이며 움직였다. 다행히 아무것도 마주치지 않았다.','멀리서 신음 같은 소리가 들렸지만, 놈들은 이쪽을 눈치채지 못했다.','햇빛이 가장 강한 정오를 골라 움직인 덕분에 무사했다.'];
+function exploreRisk(p){ const base=Math.min(.75,p.r+S.day*.006);let risk=S.tactics.has('resist')?base*.55:base; if(trusted('yusuf'))risk*=.7;if(knLv()>=3)risk*=.75;return risk; }
 function explorePick(){
   log('어디로 나갈까?');
   const rg=a=>a[0]===a[1]?`${a[0]}`:`${a[0]}~${a[1]}`;
-  choices(shuffle(PLACES).slice(0,3).sort((a,b)=>a.r-b.r).map(p=>{ const y=yieldRange(p); return {label:`📍 ${p.n}`,sub:`위험 ${p.r>=.4?'높음':p.r>=.3?'보통':'낮음'} · 🥫 식량 ${rg(y.f)} · 🪵 물자 ${rg(y.s)}${p.med?' · 💊 약품':''}${p.mo?' · 🔥 사기':''}`,fn:()=>explore(p)}; }).concat([{label:'↩ 다른 일을 한다',cls:'ghost',fn:dayPhase}]));
+  choices(shuffle(PLACES).slice(0,3).sort((a,b)=>a.r-b.r).map(p=>{ const y=yieldRange(p),risk=exploreRisk(p),visits=(S.exploreVisits||{})[p.n]||0; return {label:`📍 ${p.n}`,sub:`위험 ${risk>=.48?'높음':risk>=.30?'보통':'낮음'} · 🥫 식량 ${rg(y.f)} · 🪵 물자 ${rg(y.s)}${visits?` · 방문 ${visits}회`:''}${p.med?' · 💊 약품':''}${p.mo?' · 🔥 사기':''}`,fn:()=>explore(p)}; }).concat([{label:'↩ 다른 일을 한다',cls:'ghost',fn:dayPhase}]));
 }
 function scarceNow(){ return Math.max(0,Math.min(BAL.scap,Math.floor(S.day/12)) - (['spring','summer'].includes(season())?1:0)); }
-function yieldRange(p){ const sc=scarceNow(); const fb=(ok('yusuf')?1:0)+(knLv()>=2?1:0), sb=(ok('enzo')?1+(trusted('enzo')?1:0):0)+(knLv()>=5?1:0);
+function yieldRange(p){ const visits=(S.exploreVisits||{})[p.n]||0;const sc=scarceNow()+Math.min(2,Math.floor(visits/(p.n==='바스토뉴 기차역'?2:3))); const fb=(ok('yusuf')?1:0)+(knLv()>=2?1:0), sb=(ok('enzo')?1+(trusted('enzo')?1:0):0)+(knLv()>=5?1:0);
   return {f:[Math.max(0,p.f[0]-sc)+fb, Math.max(0,p.f[1]-sc)+fb], s:[Math.max(0,p.s[0]-sc)+sb, Math.max(0,p.s[1]-sc)+sb]}; }
 function explore(p){
   didAct('explore');
   log(`${J(p.n,'으로')} 향했다. ${p.d}`,'story');
-  const base=Math.min(.75, p.r + S.day*0.006);
-  let risk=S.tactics.has('resist')?base*0.55:base; if(trusted('yusuf')) risk*=.7; if(knLv()>=3) risk*=.75;
+  const risk=exploreRisk(p);
   let hurt=false;
   if(chance(risk)){ hurt=true; log(pick(HURT_LINES),'bad'); change({hp:-rnd(p.h[0],p.h[1])}); }
   else log(pick(SAFE_LINES));
   const scarce=scarceNow();
-  if(scarce>0 && chance(.5)) log('날이 갈수록 쓸 만한 것이 줄어든다. 다른 생존자들이 이미 다녀간 흔적이 가득하다.','sys');
-  const yr=yieldRange(p); const g={food:rnd(yr.f[0],yr.f[1]),sup:rnd(yr.s[0],yr.s[1])};
+  if((scarce>0||(S.exploreVisits||{})[p.n]>2) && chance(.5)) log('날이 갈수록 쓸 만한 것이 줄어든다. 이미 뒤진 곳은 더 쉽게 비어 버린다.','sys');
+  const yr=yieldRange(p);S.exploreVisits=S.exploreVisits||{};S.exploreVisits[p.n]=(S.exploreVisits[p.n]||0)+1; const g={food:rnd(yr.f[0],yr.f[1]),sup:rnd(yr.s[0],yr.s[1])};
   if(p.mo) g.mo=p.mo;
   if(p.med && chance(.45)){ log('미군 구급상자를 찾았다! 모르핀과 설파제 가루, 붕대가 들어 있다.','good'); g.hp=15; }
   if(!g.food && !g.sup) log('허탕이다. 누군가 먼저 다녀간 모양이다.','sys');
@@ -2741,11 +2743,12 @@ function checkpoint(done){
 const DUSK = ['해가 숲 너머로 넘어간다. 눈 덮인 들판이 다시 붉은빛으로 물든다.','그림자가 길어질수록 숲에서 들리는 울음소리가 가까워진다.','에밀이 사냥총의 노리쇠를 당겼다. 철컥. 모두가 그 소리에 정신을 차렸다.','마리가 남은 양초를 세었다. 오늘 밤은 몇 개를 켤 수 있을까.','잭이 무전기의 다이얼을 천천히 돌린다. 잡음뿐이다.'];
 // 은신의 기본 성공률은 50%로 시작한다. 시도할 때마다 5%p 감소하며 기본 최저 10%를 유지한다.
 // 하루가 지나는 것만으로는 감소하거나 회복하지 않는다. 전술·동료 보너스는 기존대로 적용한다.
-function hideRate(){ const base=Math.max(10,50-5*(S.hideUses||0)); return clamp(base + (S.tactics.has('gandhi')?20:0) + (S.flags.hideBoost?10:0) + (ok('ibra')?10:0), 10, 85); }
+function hideRate(){ const base=Math.max(10,50-5*(S.hideUses||0)); return clamp(base + (S.darkNight?15:0) + (S.tactics.has('gandhi')?20:0) + (S.flags.hideBoost?10:0) + (ok('ibra')?10:0), 10, 85); }
 function dusk(){
   log(`— ${dateStr()} 해 질 녘 —`,'head');
   if(S.request && !S.reqDone){ const m=mate(S.request.who); if(m.alive){ log(`${J(m.name.split(' ')[0],'이가')} 아무 말 없이 고개를 돌렸다. 오늘의 부탁은 끝내 들어주지 못했다.`,'sys'); bond(S.request.who,-1,true); } S.request=null; }
   log(pickAlive(DUSK),'story');
+  log(S.darkNight?'🌑 두꺼운 구름이 달을 가렸다. 마당을 비추는 빛이 거의 없다. 지금은 불을 끄고 숨는 쪽이 더 유리할지도 모른다.':'🌙 구름 사이로 달빛이 눈밭을 비춘다. 숲길까지 환하게 드러나 있다.','info');
 
   const p=S.nextAttack, known=S.known||S.tactics.has('enigma');
   if(known) log(p===0?'정찰한 대로라면 오늘 밤은 조용할 것이다.':`정찰 결과 오늘 밤 몰려올 무리의 규모는 ${p}. 우리 방어력은 ${defPower()}이다.`,'info');
@@ -2811,7 +2814,7 @@ function night(stance){
   log(`— ${dateStr()} 밤 —`,'head');
   let p=S.nextAttack;
   if(stance==='fire'){ change({sup:-1});
-    if(p>0){ log('어둠 속으로 화염병을 던졌다. 불길이 치솟으며 앞줄의 그림자들이 쓰러졌다.','story'); p=Math.max(0,p-3); if(chance(.25)){ p+=rnd(2,4); log('그러나 치솟은 불빛을 보고 다른 숲길의 무리까지 몰려들었다!','bad'); } }
+    if(p>0){ log('어둠 속으로 화염병을 던졌다. 불길이 치솟으며 앞줄의 그림자들이 쓰러졌다.','story'); p=Math.max(0,p-3); if(chance(S.darkNight?.35:.25)){ p+=rnd(2,4); log('그러나 치솟은 불빛을 보고 다른 숲길의 무리까지 몰려들었다!','bad'); } }
     else log('화염병을 준비했지만, 다행히 쓸 일이 없었다.','story'); }
   const nt=S.nextAttack>0?S.nightType:null; const bruteHit = nt==='brute' && p>0;
   if(bruteHit) log('담장보다 머리 하나는 큰 거구가 앞장섰다. 놈이 몸을 부딪칠 때마다 바리케이드가 통째로 흔들린다.','bad');
@@ -2836,7 +2839,7 @@ function night(stance){
   sfx('thump');
   log(pick(APPROACH[p<=6?'s':p<=12?'m':'l'])+` <span class="sys">(습격 규모 ${p} / 방어력 ${dp})</span>`,'story');
   const units=['me',...S.squad.map(m=>m.id)].filter(u=>u==='me'?!S.quarantine:ok(u));
-  const P={nades:S.grenades||0,fires:S.sup,sup:S.sup,p,dp,nt,bruteHit,boss:!!S.bigWave,traps,units,known:S.known||S.tactics.has('enigma'),radio:ok('jack'),seed:(Date.now()+S.day*7919)%2147483647};
+  const P={nades:S.grenades||0,fires:S.sup,sup:S.sup,p,dp,nt,bruteHit,boss:!!S.bigWave,traps,darkNight:S.darkNight,units,known:S.known||S.tactics.has('enigma'),radio:ok('jack'),seed:(Date.now()+S.day*7919)%2147483647};
   const big = S.bigWave || nt==='brute' || nt==='hunter' || p>=14 || !S.flags.dfTut;
   if(big){ S.flags.dfTut=true; log(S.bigWave?'🗿 땅이 울린다. 이번 습격은 다르다. 모두 자리로!':'⚔️ 큰 습격이다! 모두 자리로!','bad'); } else P.auto=true;
   dfOpen(P,res=>nightResult(res,p,dp,nt,bruteHit));
