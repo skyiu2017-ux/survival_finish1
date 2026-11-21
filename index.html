@@ -670,31 +670,65 @@ function toCho(s){return [...s].map(ch=>{const c=ch.charCodeAt(0); return (c>=0x
 function newState(name){
   return {name, runId:'run_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,12), day:0, hp:70, mo:55, food:5, sup:5, def:3, kn:0, grenades:3, hideUses:0, darkNight:false, exploreVisits:{}, activeMs:0, sessionStart:Date.now(), quarantine:false,
     squad:makeSquad(), tactics:new Set(), trap:0, nextAttack:0, known:false,
-    used:{mc:new Set(),ox:new Set(),cho:new Set(),ord:new Set()}, posBag:[], oxBag:[], evUsed:[],
+    used:{mc:new Set(),ox:new Set(),cho:new Set(),ord:new Set()}, quizTopics:{}, quizHistory:[], posBag:[], oxBag:[], evUsed:[],
     missed:[], correct:0, total:0, dead:false, lastNews:'',
     arc:Object.fromEntries(ALL_IDS.map(k=>[k,0])), ach:new Set(), streak:0, maxStreak:0, usedSus:new Set(), nightType:null, insideThreat:0, exp:null, expCool:0, beatsSeen:{}, flags:{}, bond:Object.fromEntries(ALL_IDS.map(k=>[k,0])), leaving:[], journal:[], notes:[], items:new Set()};
 }
 // 출제: 아직 일어나지 않은 일은 제외, 기밀은 요원 수첩·사령부 교신에서만
 function boostTopic(keys,days=3){ if(keys&&keys.length) S.topicBoost={keys,until:S.day+days}; }
-function draw(kind, ctx){
-  const src={mc:MC,ox:OX,cho:CHO,ord:ORDER}[kind];
-  S.deck=S.deck||{}; if(!S.deck[kind]||S.deck[kind].length!==src.length) S.deck[kind]=shuffle(src.map((_,i)=>i));
-  if(S.forceIdx && S.forceIdx.kind===kind){ const i=S.forceIdx.i; S.forceIdx=null; S.used[kind].add(i); return i; }
-  const today=iso(curDate());
-  const intelOK = ctx==='note'||ctx==='hq';
-  let avail=src.map((_,i)=>i).filter(i=>(!src[i].av||src[i].av<=today)&&(!src[i].intel||intelOK));
-  let fresh=avail.filter(i=>!S.used[kind].has(i));
-  if(S.topicBoost && S.day<=S.topicBoost.until && ctx!=='judge' && chance(.5)){ const txt=x=>[x.q,x.h,x.t,...(x.o||[]),...(Array.isArray(x.a)?x.a:[]),...(x.items||[]).map(y=>y[0])].join(' '); const sub=fresh.filter(i=>S.topicBoost.keys.some(k=>txt(src[i]).includes(k))); if(sub.length) fresh=sub; }
-  if(!fresh.length){ avail.forEach(i=>S.used[kind].delete(i)); fresh=avail; S.deck[kind]=shuffle(src.map((_,i)=>i)); }
-  const rank=new Map(S.deck[kind].map((v,n)=>[v,n])); fresh.sort((a,b)=>rank.get(a)-rank.get(b));
-  let pool=fresh;
-  if(kind==='ox'){ // 맞는 진술과 틀린 진술을 번갈아 고르게
-    if(!S.oxBag.length) S.oxBag=shuffle([true,false,true,false]);
-    let want=S.oxBag.pop(); if(S.forceOx!=null){ want=S.forceOx; S.forceOx=null; } const p=fresh.filter(i=>OX[i].a===want); if(p.length) pool=p;
+// 한 판의 일반 문제는 가능한 한 중복하지 않으며, 서로 가까운 개념도 7일 간격을 둔다.
+// 아래 키워드는 맞춤형 개념 묶음이며, 같은 사건의 O/X·객관식·초성 중복을 억제한다.
+const QUIZ_CONCEPTS=['독소 불가침 조약','베르사유 조약','대서양 헌장','태평양 전쟁','제2차 세계 대전','제1차 세계 대전','대공황','뉴딜 정책','블록 경제','국제 연맹','국제 연합','사회 진화론','인종주의','제국주의','파시즘','나치즘','홀로코스트','히틀러 유겐트','뉘른베르크','스탈린그라드','아르덴 대공세','총력전','참호전','삼국 동맹','삼국 협상','사라예보','러시아 혁명','10월 혁명','피의 일요일','민족 자결','3·1 운동','5·4 운동','신해혁명','인도 국민 회의','세포이의 항쟁','의화단 운동','아편 전쟁','메이지 유신','독일 통일','이탈리아 통일','러일 전쟁','청일 전쟁','인도차이나','폴란드','유대인','독립운동'];
+function quizTopic(kind,i){
+  const q=({mc:MC,ox:OX,cho:CHO,ord:ORDER})[kind][i];
+  const raw=[q.q,q.h,q.t,(kind==='mc'?q.o[q.a]:kind==='cho'?q.a[0]:''),...(q.items||[]).map(t=>t[0])].filter(Boolean).join(' ').replace(/\s+/g,' ');
+  const found=QUIZ_CONCEPTS.filter(x=>raw.includes(x));if(found.length)return found.sort((a,b)=>b.length-a.length)[0];
+  const clean=raw.replace(/[\p{P}\p{S}]/gu,' ').split(/\s+/).filter(x=>x.length>=3&&!['역사에서','옳은것은','다음중','알맞은것은','사실인가','거짓인가'].includes(x));
+  return clean.slice(0,2).join('|')||kind+':'+i;
+}
+function questionPool(kind,ctx){
+  const src={mc:MC,ox:OX,cho:CHO,ord:ORDER}[kind],today=iso(curDate());
+  const intelOK=ctx==='note'||ctx==='hq';
+  const avail=src.map((_,i)=>i).filter(i=>(!src[i].av||src[i].av<=today)&&(!src[i].intel||intelOK));
+  const fresh=avail.filter(i=>!S.used[kind].has(i));
+  const cool=(ctx==='rollcall'?7:5);
+  const ideal=fresh.filter(i=>S.day-(S.quizTopics||{})[quizTopic(kind,i)]>=cool||!(quizTopic(kind,i) in (S.quizTopics||{})));
+  return {src,avail,fresh,ideal};
+}
+function draw(kind,ctx){
+  S.deck=S.deck||{};S.quizTopics=S.quizTopics||{};S.quizHistory=S.quizHistory||[];
+  if(S.forceIdx && S.forceIdx.kind===kind){
+    const i=S.forceIdx.i;S.forceIdx=null;S.used[kind].add(i);S.lastDrawKind=kind;S.quizTopics[quizTopic(kind,i)]=S.day;return i;
   }
-  if(kind==='mc' && ctx==='note'){ const t=pool.filter(i=>MC[i].tac&&!S.tactics.has(MC[i].tac)); if(t.length&&chance(.3)) pool=t; }
-  if(!pool.length) pool=fresh;
-  const idx=pool[0]; S.used[kind].add(idx); return idx;  // 섞어 둔 목록의 순서대로
+  const order=[kind,...['mc','ox','cho','ord'].filter(k=>k!==kind)];
+  let chosen=null, ckind=kind;
+  for(const k of order){
+    const pool=questionPool(k,ctx);
+    if(pool.ideal.length){ chosen=pool.ideal;ckind=k;break; }
+  }
+  // 새 문제는 있지만 주제가 겹치면, 적어도 7일 간격의 점호보다 새 문항을 우선한다.
+  if(!chosen){for(const k of order){const p=questionPool(k,ctx);if(p.fresh.length){chosen=p.fresh;ckind=k;break;}}}
+  if(!chosen){ S.quizExhausted=true; S.lastDrawKind=kind;return -1; }
+  const pool=questionPool(ckind,ctx);
+  if(!S.deck[ckind]||S.deck[ckind].length!==pool.src.length)S.deck[ckind]=shuffle(pool.src.map((_,i)=>i));
+  const rank=new Map(S.deck[ckind].map((v,n)=>[v,n]));
+  if(S.topicBoost&&S.day<=S.topicBoost.until&&ctx!=='rollcall'&&chance(.3)){
+    const sub=chosen.filter(i=>S.topicBoost.keys.some(k=>JSON.stringify(pool.src[i]).includes(k)));
+    if(sub.length)chosen=sub;
+  }
+  if(ckind==='ox'){ // O/X는 새 문항이 충분할 때만 참·거짓 균형을 맞춘다.
+    if(!S.oxBag.length)S.oxBag=shuffle([true,false,true,false]);
+    const want=S.oxBag.pop(), matched=chosen.filter(i=>OX[i].a===want);
+    if(matched.length)chosen=matched;
+  }
+  if(ckind==='mc'&&ctx==='note'){
+    const un=chosen.filter(i=>MC[i].tac&&!S.tactics.has(MC[i].tac));
+    if(un.length&&chance(.2))chosen=un;
+  }
+  chosen.sort((a,b)=>rank.get(a)-rank.get(b));
+  const idx=chosen[0];S.used[ckind].add(idx);S.lastDrawKind=ckind;
+  S.quizTopics[quizTopic(ckind,idx)]=S.day;
+  S.quizHistory.push({kind:ckind,idx,day:S.day});return idx;
 }
 // 정답 위치: 네 칸이 고르게 돌아가도록 주머니에서 꺼낸다
 function rvNorm(s){ return String(s).replace(/[\s·.ㆍ()（）]/g,'').toLowerCase(); }
@@ -711,7 +745,7 @@ function reviewAlt(kind,idx){ // 같은 개념을 다른 형식으로
 }
 function scheduleReview(kind,idx){ if(kind==='ord') return; S.review=S.review||[];
   if(S.review.some(r=>r.kind===kind&&r.idx===idx)) return;
-  S.review.push({kind,idx,due:S.day+rnd(5,10)}); }
+  S.review.push({kind,idx,due:S.day+rnd(7,11)}); }
 function reviewDue(){ return (S.review||[]).find(r=>r.due<=S.day); }
 function nextPos(){ if(!S.posBag.length) S.posBag=shuffle([0,1,2,3,0,1,2,3]); return S.posBag.pop(); }
 
@@ -792,8 +826,10 @@ function checkDeath(){
 function puzzle(kind, title, done, ctx='note'){
   if(S.evName){ note(S.evName); S.evName=null; }
   let rvItem=null;
-  if(ctx==='memory' && !S.forceIdx){ rvItem=reviewDue(); if(rvItem){ const alt=reviewAlt(rvItem.kind,rvItem.idx); kind=alt.kind; S.forceIdx={kind,i:alt.i}; title='🔁 다시 묻는 기억 — 며칠 전 놓친 개념'; } }
+  if((ctx==='memory'||ctx==='rollcall') && !S.forceIdx){ rvItem=reviewDue(); if(rvItem){ const alt=reviewAlt(rvItem.kind,rvItem.idx); const useAlt=alt.kind===rvItem.kind&&alt.i===rvItem.idx||!S.used[alt.kind].has(alt.i);kind=useAlt?alt.kind:rvItem.kind;S.forceIdx={kind,i:useAlt?alt.i:rvItem.idx}; title='🔁 오답 복습 — 며칠 전 놓친 개념'; } }
   const idx=draw(kind, ctx);
+  if(idx<0){ log('오늘 확인할 새로운 역사 문제가 모두 소진되었다. 이미 배운 내용을 서로 설명하며 기억을 점검했다.','info');return cont(()=>done(true,null),'계속'); }
+  kind=S.lastDrawKind||kind;
   S.total++;
   const finish=(right, ansText, exp, qText)=>{
     if(right){ S.correct++; S.streak++; S.maxStreak=Math.max(S.maxStreak,S.streak); change({kn:1}); } else { S.streak=0; S.missed.push({q:qText, a:ansText, e:exp}); }
@@ -2047,7 +2083,7 @@ function dfDraw(ctx,st,ui){
 function performanceNow(){ return (typeof performance!=='undefined'&&performance.now)?performance.now():Date.now(); }
 
 /* ---------- 보스 문제 ---------- */
-function dfAskData(){ const idx=draw('cho','note'); const Q=CHO[idx]; S.total++; return {Q,i:idx,code:toCho(Q.a[0])}; }
+function dfAskData(){ let idx=draw('cho','note');if(idx<0){ const available=CHO.map((_,i)=>i).filter(i=>!S.used.cho.has(i));idx=available.length?available[0]:Math.floor(Math.random()*CHO.length);}const Q=CHO[idx]; S.total++; return {Q,i:idx,code:toCho(Q.a[0])}; }
 function dfAnswer(d,ok){
   if(ok){ S.correct++; S.streak++; S.maxStreak=Math.max(S.maxStreak,S.streak); change({kn:1}); }
   else { S.streak=0; S.missed.push({q:`[거인 앞에서 외친 말] ${d.Q.h} (${d.code})`,a:d.Q.a[0],e:''}); scheduleReview('cho',d.i); }
@@ -2426,7 +2462,7 @@ function rollcall(next){
     if(r){ log('막힘없이 대답했다. 모두의 얼굴이 조금 풀렸다.','good'); change({mo:3}); note('아침 점호 통과'); }
     else { log('대답이 늦었다. 다들 아무 말 없이 서로를 쳐다보았다.','bad'); change({mo:-1}); note('아침 점호에서 머뭇거렸다'); }
     if(checkDeath()) return; cont(next);
-  },'memory');
+  },'rollcall');
 }
 // 난이도 공식: 처음 BAL.g1d일은 빠르게, 그 뒤로는 완만하게 커진다 (1일째부터 같은 공식)
 const BAL={g1d:13,g2:0.3,scap:2};
