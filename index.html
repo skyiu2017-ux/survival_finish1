@@ -708,7 +708,17 @@ function draw(kind,ctx){
   }
   // 새 문제는 있지만 주제가 겹치면, 적어도 7일 간격의 점호보다 새 문항을 우선한다.
   if(!chosen){for(const k of order){const p=questionPool(k,ctx);if(p.fresh.length){chosen=p.fresh;ckind=k;break;}}}
-  if(!chosen){ S.quizExhausted=true; S.lastDrawKind=kind;return -1; }
+  if(!chosen){ // 229문항을 모두 소진한 뒤에만 최소 21일이 지난 과거 문항을 불가피한 복습으로 사용
+    for(const k of order){
+      const pool=questionPool(k,ctx);
+      const old=pool.avail.filter(i=>{
+        const last=(S.quizHistory||[]).filter(q=>q.kind===k&&q.idx===i).slice(-1)[0];
+        return last&&S.day-last.day>=21;
+      });
+      if(old.length){chosen=old;ckind=k;S.quizRecap=true;break;}
+    }
+  }
+  if(!chosen){S.quizExhausted=true;S.lastDrawKind=kind;return -1;}
   const pool=questionPool(ckind,ctx);
   if(!S.deck[ckind]||S.deck[ckind].length!==pool.src.length)S.deck[ckind]=shuffle(pool.src.map((_,i)=>i));
   const rank=new Map(S.deck[ckind].map((v,n)=>[v,n]));
@@ -829,12 +839,15 @@ function puzzle(kind, title, done, ctx='note'){
   if(S.evName){ note(S.evName); S.evName=null; }
   let rvItem=null;
   if((ctx==='memory'||ctx==='rollcall') && !S.forceIdx){ rvItem=reviewDue(); if(rvItem){ const alt=reviewAlt(rvItem.kind,rvItem.idx); const useAlt=alt.kind===rvItem.kind&&alt.i===rvItem.idx||!S.used[alt.kind].has(alt.i);kind=useAlt?alt.kind:rvItem.kind;S.forceIdx={kind,i:useAlt?alt.i:rvItem.idx}; title='🔁 오답 복습 — 며칠 전 놓친 개념'; } }
+  S.quizRecap=false;
   const idx=draw(kind, ctx);
+  const recap=!!S.quizRecap;
+  if(recap)log('📚 문제은행을 모두 학습해 21일 이상 지난 개념을 다시 확인합니다. 새 지식은 지급하지 않습니다.','info');
   if(idx<0){ log('오늘 확인할 새로운 역사 문제가 모두 소진되었다. 이미 배운 내용을 서로 설명하며 기억을 점검했다.','info');return cont(()=>done(true,null),'계속'); }
   kind=S.lastDrawKind||kind;
   S.total++;
   const finish=(right, ansText, exp, qText)=>{
-    if(right){ S.correct++; S.streak++; S.maxStreak=Math.max(S.maxStreak,S.streak); change({kn:1}); } else { S.streak=0; S.missed.push({q:qText, a:ansText, e:exp}); }
+    if(right){S.correct++;S.streak++;S.maxStreak=Math.max(S.maxStreak,S.streak);if(!recap)change({kn:1});} else { S.streak=0; S.missed.push({q:qText, a:ansText, e:exp}); }
     if(rvItem){ S.review=S.review.filter(r=>r!==rvItem); if(right) log('🔁 지난번에 놓친 개념을 이번에는 기억해 냈다.','good'); else { rvItem.due=S.day+rnd(5,8); S.review.push(rvItem); } }
     else if(!right) scheduleReview(kind,idx);
     if(exp) log(exp,'exp');
@@ -1376,7 +1389,7 @@ const REFUGEES=['피에르(제빵사)','헬레나(폴란드에서 온 하녀)','
 function oxPick(want){
   const today=iso(curDate());
   const c=OX.map((q,i)=>i).filter(i=>OX[i].a===want&&(!OX[i].av||OX[i].av<=today)&&!OX[i].intel&&!S.usedSus.has(i)&&!S.used.ox.has(i));
-  const i=pick(c.length?c:OX.map((q,i)=>i).filter(i=>OX[i].a===want&&!S.usedSus.has(i)));S.usedSus.add(i);S.used.ox.add(i);S.quizTopics=S.quizTopics||{};S.quizTopics[quizTopic('ox',i)]=S.day;return i;
+  const alt=OX.map((q,i)=>i).filter(i=>OX[i].a===want&&!S.usedSus.has(i));const i=pick(c.length?c:alt.length?alt:OX.map((q,i)=>i).filter(i=>OX[i].a===want));S.usedSus.add(i);S.used.ox.add(i);S.quizTopics=S.quizTopics||{};S.quizTopics[quizTopic('ox',i)]=S.day;return i;
 }
 function suspectsEvent(done){
   const names=shuffle(REFUGEES).slice(0,3), bad=rnd(0,2);
@@ -2084,9 +2097,9 @@ function dfDraw(ctx,st,ui){
 function performanceNow(){ return (typeof performance!=='undefined'&&performance.now)?performance.now():Date.now(); }
 
 /* ---------- 보스 문제 ---------- */
-function dfAskData(){ let idx=draw('cho','boss');if(idx<0){ const available=CHO.map((_,i)=>i).filter(i=>!S.used.cho.has(i));idx=available.length?available[0]:Math.floor(Math.random()*CHO.length);}const Q=CHO[idx]; S.total++; return {Q,i:idx,code:toCho(Q.a[0])}; }
+function dfAskData(){ S.quizRecap=false;let idx=draw('cho','boss');if(idx<0){ const available=CHO.map((_,i)=>i).filter(i=>!S.used.cho.has(i));idx=available.length?available[0]:Math.floor(Math.random()*CHO.length);}const Q=CHO[idx]; S.total++; return {Q,i:idx,code:toCho(Q.a[0])}; }
 function dfAnswer(d,ok){
-  if(ok){ S.correct++; S.streak++; S.maxStreak=Math.max(S.maxStreak,S.streak); change({kn:1}); }
+  if(ok){ S.correct++; S.streak++; S.maxStreak=Math.max(S.maxStreak,S.streak);if(!S.quizRecap)change({kn:1}); }
   else { S.streak=0; S.missed.push({q:`[거인 앞에서 외친 말] ${d.Q.h} (${d.code})`,a:d.Q.a[0],e:''}); scheduleReview('cho',d.i); }
 }
 function dfHeadlessAsk(cb){ const d=dfAskData(); const ok=Math.random()<.6; dfAnswer(d,ok); cb(ok); }
