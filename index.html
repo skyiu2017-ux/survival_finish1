@@ -773,10 +773,10 @@ function choices(list, cls=''){
 function cont(fn,label='계속'){choices([{label,cls:'primary',fn}]);}
 const KNOW=[
   {at:5, n:'참호전의 교훈',  d:'방어 공사 때 방어선 +1', h:'1차 대전 서부 전선의 병사들은 땅을 파고 모래주머니를 쌓아 버텼다.'},
-  {at:15,n:'총력전의 배급',  d:'탐색 때 식량 +1', h:'총력전 시기의 나라들은 식량을 아끼고 나누는 배급 제도를 만들었다.'},
+  {at:15,n:'총력전의 배급',  d:'위험한 탐색 때 식량 +1', h:'총력전 시기의 나라들은 식량을 아끼고 나누는 배급 제도를 만들었다.'},
   {at:30,n:'레지스탕스의 길',d:'탐색 때 다칠 위험 25% 감소', h:'점령지의 저항 운동가들은 검문소를 피해 다니는 숨은 길을 알고 있었다.'},
   {at:50,n:'전시 물자 관리',d:'방어 공사 물자 1 절약 · 겨울 난방은 나흘에 한 번', h:'총력전 시기 각국은 금속·연료·고무 같은 물자를 회수하고 통제하며 전쟁에 필요한 자원을 관리하였다.'},
-  {at:75,n:'대서양 헌장의 연대',d:'탐색 때 물자 +1 · 매일 아침 사기 +2', h:'1941년 연합국은 함께 싸우고 함께 평화를 세우자고 약속했다.'},
+  {at:75,n:'대서양 헌장의 연대',d:'탐색 때 물자 +1 · 닷새마다 사기 +1(낮을 때)', h:'1941년 연합국은 함께 싸우고 함께 평화를 세우자고 약속했다.'},
 ];
 function knLv(){ const t=S.knTotal||0; return KNOW.filter(k=>t>=k.at).length; }
 function heatNeed(){ return season()==='winter' ? 1 : 0; }
@@ -805,9 +805,11 @@ function change(o){
   const parts=[];
   for(const k in o){
     if(!o[k]) continue;
-    const before=S[k]; const lv0 = k==='kn' ? knLv() : 0; S[k]+=o[k];
+    const before=S[k],lv0=k==='kn'?knLv():0;
+    const gain=k==='mo'&&o[k]>0?Math.floor(o[k]*(before>=80?.25:before>=60?.60:1)):o[k];
+    S[k]+=gain;
     if(k==='kn' && o[k]>0){ S.knTotal=(S.knTotal||0)+o[k]; const lv1=knLv(); if(lv1>lv0){ const K=KNOW[lv1-1]; setTimeout(()=>log(`📜 배움이 쌓였다 — 「${K.n}」 <span class="sys">${K.h}</span><br>이제부터: <b>${K.d}</b>`,'gold'),0); } }
-    if(k==='hp'||k==='mo') S[k]=clamp(S[k],0,100); else S[k]=Math.max(0,S[k]);
+    if(k==='hp'||k==='mo')S[k]=clamp(S[k],0,100);else if(k==='kn')S[k]=clamp(S[k],0,20);else S[k]=Math.max(0,S[k]);
     const d=S[k]-before; if(!d) continue;
     parts.push(`<span class="${d>0?'good':'bad'}">${NAMES[k]} ${d>0?'+':''}${d}</span>`);
   }
@@ -2412,12 +2414,14 @@ function morning(){
     else { if(S.food>0) change({food:-S.food}); log('먹을 것이 모자란다. 빈속으로 맞는 아침, 다리가 후들거리고 손끝이 떨린다.','bad'); change({hp:-14,mo:-2}); }
   }
   // 겨울 난방: 매일
-  if(knLv()>=5) change({mo:2});
+  if(knLv()>=5 && S.day%5===0 && S.mo<60)change({mo:1});
   if(ss==='winter' && S.day%(knLv()>=4?4:2)===1){
     if(S.sup>0){ log('난로에 장작을 넣었다.','sys'); change({sup:-1}); }
     else { log('땔감이 없다. 밤새 손발이 얼어붙었다.','bad'); change({hp:-8,mo:-5}); }
     if(S.def>2 && chance(.35)){ log('밤새 얼어붙은 바리케이드 한쪽이 갈라졌다.','sys'); change({def:-1}); }
   }
+  if(S.food>30){const spoil=Math.ceil((S.food-30)*.20);change({food:-spoil});log('넘치게 쌓인 식량 일부가 상했다.','sys');}
+  if(S.sup>28 && S.day%3===0){const wet=Math.ceil((S.sup-28)*.09);change({sup:-wet});log('과도하게 비축한 목재와 연료 일부가 젖었다.','sys');}
   if(ss==='summer' && S.food>6){ log('여름 더위에 쌓아 둔 식량 일부가 상했다.','bad'); change({food:-rnd(1,2)}); }
   // 외출한 동료
   S.squad.forEach(m=>{ if(m.alive&&m.away){ m.away--; if(m.away<=0){ m.away=0; } } });
@@ -2425,15 +2429,15 @@ function morning(){
   if(S.flags.garden && key>='1945-06-01' && S.day%3===0){ log('🌱 에밀의 텃밭에서 감자와 콩을 거뒀다.','good'); change({food:1}); }
   if(S.flags.lessons && ok('leon') && S.day%(trusted('leon')?5:7)===0){ log('📚 어젯밤 레온의 수업. 칠판 가득 연표가 그려졌다.','info'); change({kn:1,mo:3}); }
   // 동료
-  if(S.hp<100){ const mh = ok('marie') ? (trusted('marie')?5:2) : 0; if(mh) log('마리가 상처를 소독하고 새 붕대를 감아 주었다.','info'); else log('밤새 쪽잠을 자고 나니 몸이 조금 풀렸다.','sys'); change({hp:3+mh}); }
+  if(S.hp<100){ const mh = ok('marie') ? (trusted('marie')?4:2) : 0; if(mh) log('마리가 상처를 소독하고 새 붕대를 감아 주었다.','info'); else log('밤새 쪽잠을 자고 나니 몸이 조금 풀렸다.','sys'); change({hp:1+mh}); }
   S.squad.forEach(m=>{ if(m.alive&&m.hurt){ m.hurt-= ok('marie')?2:1; if(m.hurt<=0){m.hurt=0; log(`${J(m.name,'이가')} 부상에서 회복했다.`,'good');} } });
   // 깊어지는 공포
   const warm = ['spring','summer'].includes(ss);
-  const drain = Math.max(1,(S.day<=7?1:S.day<=20?2:3) - (warm?1:0));
+  const drain = Math.max(1,(S.day<=7?1:S.day<=20?2:S.day<=50?3:4) - (warm?1:0));
   log(pick(['끝이 보이지 않는 밤들이 사람을 갉아먹는다.','누구도 입 밖에 내지 않지만, 모두가 지쳐 가고 있다.','바깥의 울음소리가 꿈속까지 따라온다.','어젯밤 누군가 잠꼬대로 이름을 불렀다. 이미 떠난 사람의 이름이었다.']),'sys');
   change({mo:-drain});
-  if(S.tactics.has('un')) change({mo:3});
-  if(S.tactics.has('social') && S.mo<30){ log('"약한 사람을 버리지 않는다." 당신의 말에 모두가 다시 일어섰다.','info'); change({mo:6}); }
+  if(S.tactics.has('un') && S.day%3===0 && S.mo<70)change({mo:1});
+  if(S.tactics.has('social') && S.day%3===0 && S.mo<25){ log('"약한 사람을 버리지 않는다." 당신의 말에 모두가 다시 일어섰다.','info'); change({mo:3}); }
   render();
   if(checkDeath()) return;
   S.nextAttack = attackPower(); rollSpecial(); if(trusted('jack')) S.known=true; render();
@@ -2459,7 +2463,7 @@ function rollcall(next){
   if(!host){ log('아침 점호를 할 사람이 없다. 당신은 혼자 소리 내어 어제 배운 것을 되뇌었다.','sys'); }
   else log(pick([`아침 점호. ${J(host,'이가')} 한 사람씩 돌아가며 묻는다. 열병은 밤사이 기억부터 갉아먹으니까.`,`${J(host,'이가')} 칠판 앞에 섰다. "오늘도 다들 기억이 온전한지 확인하세."`,`난롯가에 둘러앉아 아침 점호를 했다. ${J(host,'이가')} 당신 차례라며 고개를 돌렸다.`]),'story');
   puzzle(chance(.6)?'ox':'mc','🧠 아침 점호',(r)=>{
-    if(r){ log('막힘없이 대답했다. 모두의 얼굴이 조금 풀렸다.','good'); change({mo:3}); note('아침 점호 통과'); }
+    if(r){ log('막힘없이 대답했다. 모두의 얼굴이 조금 풀렸다.','good'); if(S.mo<55)change({mo:1}); note('아침 점호 통과'); }
     else { log('대답이 늦었다. 다들 아무 말 없이 서로를 쳐다보았다.','bad'); change({mo:-1}); note('아침 점호에서 머뭇거렸다'); }
     if(checkDeath()) return; cont(next);
   },'rollcall');
@@ -2548,7 +2552,7 @@ function explorePick(){
   choices(shuffle(PLACES).slice(0,3).sort((a,b)=>a.r-b.r).map(p=>{ const y=yieldRange(p),risk=exploreRisk(p),visits=(S.exploreVisits||{})[p.n]||0; return {label:`📍 ${p.n}`,sub:`위험 ${risk>=.48?'높음':risk>=.30?'보통':'낮음'} · 🥫 식량 ${rg(y.f)} · 🪵 물자 ${rg(y.s)}${visits?` · 방문 ${visits}회`:''}${p.med?' · 💊 약품':''}${p.mo?' · 🔥 사기':''}`,fn:()=>explore(p)}; }).concat([{label:'↩ 다른 일을 한다',cls:'ghost',fn:dayPhase}]));
 }
 function scarceNow(){ return Math.max(0,Math.min(BAL.scap,Math.floor(S.day/12)) - (['spring','summer'].includes(season())?1:0)); }
-function yieldRange(p){ const visits=(S.exploreVisits||{})[p.n]||0;const sc=scarceNow()+Math.min(2,Math.floor(visits/(p.n==='바스토뉴 기차역'?2:3))); const fb=(ok('yusuf')?1:0)+(knLv()>=2?1:0), sb=(ok('enzo')?1+(trusted('enzo')?1:0):0)+(knLv()>=5?1:0);
+function yieldRange(p){ const visits=(S.exploreVisits||{})[p.n]||0;const sc=scarceNow()+Math.min(2,Math.floor(visits/(p.n==='바스토뉴 기차역'?2:3))); const fb=(ok('yusuf')?1:0)+(knLv()>=2&&p.r>=.3?1:0), sb=(ok('enzo')?1+(trusted('enzo')?1:0):0)+(knLv()>=5?1:0);
   return {f:[Math.max(0,p.f[0]-sc)+fb, Math.max(0,p.f[1]-sc)+fb], s:[Math.max(0,p.s[0]-sc)+sb, Math.max(0,p.s[1]-sc)+sb]}; }
 function explore(p){
   didAct('explore');
@@ -2637,7 +2641,7 @@ function archive(){
   puzzle(kind, kind==='mc'?'📓 수첩 해독':'📓 찢긴 쪽 맞추기',(right,idx)=>{
     if(right){
       log(pick(['정답이 가리킨 곳을 찾아가자, 마루 밑에서 기름종이에 싼 꾸러미가 나왔다.','은닉처는 정말 그 자리에 있었다. 고맙소, 대위.','벽돌 뒤에서 녹슨 철함이 나왔다. 안에는 통조림과 연료, 탄약이 가지런히 들어 있었다.']),'good');
-      change({kn:1,food:rnd(1,3),sup:rnd(1,2)}); note('수첩을 풀어 은닉처를 찾았다');
+      change({kn:1,food:rnd(1,2),sup:rnd(0,1)}); note('수첩을 풀어 은닉처를 찾았다');
       if(chance(.05)){ S.grenades=(S.grenades||0)+1; log('💣 숨겨진 보급함에서 수류탄 한 발을 찾았다.','good');render();note('수첩에서 수류탄 +1'); }
       if(kind==='mc'){ const t=MC[idx].tac; if(t&&!S.tactics.has(t)){ log('수첩 여백에 대위가 남긴 메모가 있다. 역사 속 사람들이 살아남은 방법이었다.','info'); unlock(t);} }
     } else {
@@ -2650,7 +2654,7 @@ function archive(){
 function rest(){
   log(pickAlive(['교대로 보초를 세우고 눈을 붙였다. 꿈속에서 고향의 봄이 흘렀다.','마리가 끓여 준 묽은 수프를 먹고 오랜만에 깊이 잠들었다.','난롯가에서 잠시 쉬었다. 멀리서 들리는 소리는 애써 무시했다.']),'story');
   const heal=(ok('marie')?26:22)*(S.food>0?1:.5); if(!S.food) log('빈속으로는 잠도 오지 않는다.','sys');
-  change({hp:Math.round(heal),mo:6,food:S.food>0?-1:0}); note('하루를 쉬었다');
+  change({hp:Math.round(heal),mo:3,food:S.food>0?-1:0}); note('하루를 쉬었다');
   afterAction();
 }
 function care(){
@@ -2658,7 +2662,7 @@ function care(){
   if(hurt.length){ hurt.forEach(m=>{m.hurt=Math.max(0,m.hurt-2);}); log(`${hurt.map(m=>m.name).join(', ')}의 상처를 돌봤다. ${hurt.some(m=>!m.hurt)?'이제 움직일 수 있을 것 같다.':'조금 나아졌다.'}`,'good'); render(); }
   const pool=aliveMates().filter(m=>!m.hurt);
   if(pool.length){ const m=pick(pool); const L=TALKS[m.id]; log(L[(S.day+rnd(0,3))%L.length],'story'); }
-  change({mo:hurt.length?6:10}); note('동료들과 이야기를 나눴다');
+  change({mo:hurt.length?4:5}); note('동료들과 이야기를 나눴다');
   afterAction();
 }
 function scout(){
@@ -2825,8 +2829,8 @@ function checkpoint(done){
   let n=0, good=0; const kinds=shuffle(['mc','ox','cho']);
   const step=()=>{
     if(n===3){
-      if(good===3){log('"신원 확인. 보급품 투하!" — 낙하산이 마당에 떨어졌다.','good'); change({food:4,sup:3,mo:10});}
-      else if(good===2&&S.flags.morse){log('잭이 모스 부호로 신원을 덧붙여 보냈다. "확인 완료. 보급품 투하!"','good'); change({food:4,sup:3,mo:8});}
+      if(good===3){log('"신원 확인. 보급품 투하!" — 낙하산이 마당에 떨어졌다.','good'); change({food:3,sup:2,mo:4});}
+      else if(good===2&&S.flags.morse){log('잭이 모스 부호로 신원을 덧붙여 보냈다. "확인 완료. 보급품 투하!"','good'); change({food:3,sup:2,mo:3});}
       else if(good===2){log('"부분 확인. 최소 보급만 보낸다."','info'); change({food:2,sup:1});}
       else {log('"응답 불일치. 교신을 종료한다." … 무전이 끊겼다.','bad'); change({mo:-8});}
       if(checkDeath()) return; cont(done); return;
