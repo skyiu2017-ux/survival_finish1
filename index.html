@@ -2099,7 +2099,7 @@ function performanceNow(){ return (typeof performance!=='undefined'&&performance
 /* ---------- 보스 문제 ---------- */
 function dfAskData(){
   S.quizRecap=false;
-  let idx=draw('cho','boss');
+  let idx=questionPool('cho','boss').fresh.length?draw('cho','boss'):-1;
   if(idx>=0){
     const Q=CHO[idx];S.total++;
     return {kind:'cho',Q,i:idx,code:toCho(Q.a[0]),recap:!!S.quizRecap};
@@ -2122,7 +2122,7 @@ function dfAskData(){
   // 모든 새로운 입력용 개념까지 소진한 경우, 예전에 틀린 것 또는 21일 지난 낱말만 복습한다.
   const eligible=CHO.map((Q,i)=>({Q,i,last:(S.quizHistory||[]).filter(t=>t.kind==='cho'&&t.idx===i).slice(-1)[0]}))
     .filter(x=>x.last&&S.day-x.last.day>=21);
-  const c=eligible.length?eligible[0]:{Q:CHO[Math.floor(Math.random()*CHO.length)],i:0};
+  const randomIndex=Math.floor(Math.random()*CHO.length);const c=eligible.length?eligible[0]:{Q:CHO[randomIndex],i:randomIndex};
   S.quizRecap=true;S.total++;
   return {kind:'cho',Q:c.Q,i:c.i,code:toCho(c.Q.a[0]),recap:true};
 }
