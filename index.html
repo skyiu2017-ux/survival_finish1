@@ -167,6 +167,7 @@ th{color:var(--dim);font-weight:400}
       <p><b>하루의 흐름</b> — 아침 라디오 → 낮에 행동 2가지(오전·오후) → 해 질 녘 밤 대비 → 감염자 습격. 날짜는 실제 1945년 달력을 따라 하루씩 흐르고, 실제 역사 소식이 라디오로 들려온다.</p>
       <p><b>동료와 기록</b> — 여덟 명의 생존자 가운데 <b>네 명이 판마다 무작위로</b> 함께한다. 동료마다 능력과 이야기가 다르다. 당신의 선택이 그 이야기를 바꾼다. 하루하루는 <b>생존 일지</b>에, 주운 시대의 자료는 <b>사료 도감</b>에 남는다.</p>
       <p><b>알아 둘 것</b> — 등장인물(동료 여덟 명과 헤이스팅스 대위)과 열병·감염자는 지어낸 이야기이고, 라디오로 들려오는 전쟁 소식과 문제는 실제 역사이다.</p>
+      <p><b>이어하기</b> — 오전·오후 행동 선택 화면의 '저장 후 나가기'로 보관한다. 같은 기기·브라우저에서 이어할 수 있지만, 불러온 저장 기록은 바로 소비된다. 사망·종전·기록 종료 뒤에는 이어할 수 없다. 서버에 별도 저장하지 않는다.</p>
       <p><b>밤의 날씨와 탐색</b> — 밤마다 하늘이 변한다. 달빛 없는 흐린 밤은 숨기 좋지만 화염병 불빛은 더 눈에 띈다. 반복해서 탐색한 장소는 남은 자원이 줄며, 바스토뉴 보급창 원정은 한 번만 성공적으로 방문할 수 있다.</p>
       <p><b>동료 배치</b> — 종탑은 긴 사거리와 단발 위력이 장점이지만 발사가 느리다. 왼쪽 창가는 빠른 사격, 오른쪽 창가는 넓은 폭발 공격, 바리케이드는 가까운 적 공격과 근접 저지가 강점이다. 신뢰가 높은 동료는 공격 속도와 위력이 소폭 높아진다. 단 하나의 고정 정답 위치는 없다.</p>
       <p><b>전투 투척물</b> — 수류탄은 처음 3개만 주어지며, 쓰면 없어지고 탐색·수첩·원정에서 드물게 찾아야 한다. 화염병은 별도 재고가 아니라 <b>현재 물자 1개를 소비</b>해 던진다. 전투에서 두 버튼 중 하나를 선택하고 감염자가 모인 눈밭을 누르자.</p>
@@ -608,6 +609,7 @@ function updateSaveButton(){
 }
 function saveAndLeave(){
   if(!S||S.dead||S.exp||S.resumePoint!=='day')return;
+  S.activeMs=(S.activeMs||0)+Math.max(0,Date.now()-(S.sessionStart||Date.now()));S.sessionStart=0;
   const state=JSON.parse(JSON.stringify(S,(k,v)=>v instanceof Set?{__saveSet:[...v]}:v));
   // 평소 진행에 필요한 정보만 저장. 실행 중인 콜백이나 화면 노드는 저장하지 않는다.
   const payload={version:1,phase:'day',state,log:$('log').innerHTML,savedAt:Date.now()};
@@ -625,7 +627,7 @@ function resumeSavedGame(){
   catch(e){alert('저장된 진행 기록을 읽을 수 없습니다.');return;}
   // 불러오기 전에 슬롯을 소비하여 같은 저장점을 여러 번 이용하지 못하게 한다.
   try{localStorage.removeItem(CONTINUE_KEY);}catch(e){alert('저장 기록을 소비하지 못했습니다. 다른 브라우저 설정을 확인하세요.');return;}
-  S=state;S.resumePoint=null;
+  S=state;S.resumePoint=null;S.sessionStart=Date.now();
   $('nameInput').value=S.name;
   $('startScreen').classList.add('hidden');$('endScreen').classList.add('hidden');$('gameScreen').classList.remove('hidden');
   document.body.classList.add('ingame');$('btnRec').classList.remove('hidden');
@@ -666,7 +668,7 @@ const CHOSUNG='ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ';
 function toCho(s){return [...s].map(ch=>{const c=ch.charCodeAt(0); return (c>=0xAC00&&c<=0xD7A3)?CHOSUNG[Math.floor((c-0xAC00)/588)]:ch;}).join('');}
 
 function newState(name){
-  return {name, runId:'run_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,12), day:0, hp:70, mo:55, food:5, sup:5, def:3, kn:0, grenades:3, hideUses:0, darkNight:false, exploreVisits:{}, quarantine:false,
+  return {name, runId:'run_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,12), day:0, hp:70, mo:55, food:5, sup:5, def:3, kn:0, grenades:3, hideUses:0, darkNight:false, exploreVisits:{}, activeMs:0, sessionStart:Date.now(), quarantine:false,
     squad:makeSquad(), tactics:new Set(), trap:0, nextAttack:0, known:false,
     used:{mc:new Set(),ox:new Set(),cho:new Set(),ord:new Set()}, posBag:[], oxBag:[], evUsed:[],
     missed:[], correct:0, total:0, dead:false, lastNews:'',
@@ -3084,7 +3086,7 @@ function gameOver(kind){
   const cause = kind==='peace' ? '🕊️ 생존 완료 — 종전까지 살아남았다' : kind==='quit' ? '도전 종료 — 현재 날짜까지의 기록 제출' : kind==='hp' ? hpCause : '절망 — 무리가 흩어졌다';
   if(kind!=='peace') log(kind==='quit'?'생존 기록을 여기서 마친다. 다음 도전에서는 더 오래 버틸 수 있을까?':kind==='hp'?'시야가 하얗게 흐려진다. 눈송이가 얼굴 위로 내려앉는다. 그리고, 고요.':'희망을 잃은 사람들이 하나둘 떠났다. 당신은 텅 빈 수도원에 홀로 남았다.','bad');
   const days=calDays(), rate=S.total?Math.round(S.correct/S.total*100):0;
-  const rec={runId:S.runId,name:S.name,days,date:dateShort(),cause,rate,clear:kind==='peace',knowledge:Math.max(0,Math.floor(S.knTotal||0)),food:Math.max(0,Math.floor(S.food)),sup:Math.max(0,Math.floor(S.sup))};
+  const rec={runId:S.runId,name:S.name,days,date:dateShort(),cause,rate,clear:kind==='peace',knowledge:Math.max(0,Math.floor(S.knTotal||0)),food:Math.max(0,Math.floor(S.food)),sup:Math.max(0,Math.floor(S.sup)),total:Math.max(0,Math.floor(S.total||0)),correct:Math.max(0,Math.floor(S.correct||0)),activeMinutes:Math.max(0,Math.round(((S.activeMs||0)+(S.sessionStart?Math.max(0,Date.now()-S.sessionStart):0))/60000))};
   autoSendRank(rec);
   const title = kind==='quit'?'자신의 기록을 남긴 생존자':kind==='peace' ? (aliveMates().length===4?'모두를 지켜 낸 종전의 증인':'종전의 증인') : days>=150?'붉은 눈의 전설':days>=100?'두 번의 계절을 넘긴 자':days>=60?'봄을 맞은 생존자':days>=30?'아르덴의 겨울을 버틴 자':days>=14?'노련한 연락원':days>=7?'첫 주를 넘긴 자':'첫눈의 희생자';
   setTimeout(async()=>{
