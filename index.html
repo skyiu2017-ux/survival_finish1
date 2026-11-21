@@ -168,6 +168,7 @@ th{color:var(--dim);font-weight:400}
       <p><b>동료와 기록</b> — 여덟 명의 생존자 가운데 <b>네 명이 판마다 무작위로</b> 함께한다. 동료마다 능력과 이야기가 다르다. 당신의 선택이 그 이야기를 바꾼다. 하루하루는 <b>생존 일지</b>에, 주운 시대의 자료는 <b>사료 도감</b>에 남는다.</p>
       <p><b>알아 둘 것</b> — 등장인물(동료 여덟 명과 헤이스팅스 대위)과 열병·감염자는 지어낸 이야기이고, 라디오로 들려오는 전쟁 소식과 문제는 실제 역사이다.</p>
       <p><b>밤의 날씨와 탐색</b> — 밤마다 하늘이 변한다. 달빛 없는 흐린 밤은 숨기 좋지만 화염병 불빛은 더 눈에 띈다. 반복해서 탐색한 장소는 남은 자원이 줄며, 바스토뉴 보급창 원정은 한 번만 성공적으로 방문할 수 있다.</p>
+      <p><b>동료 배치</b> — 종탑은 긴 사거리와 단발 위력이 장점이지만 발사가 느리다. 왼쪽 창가는 빠른 사격, 오른쪽 창가는 넓은 폭발 공격, 바리케이드는 가까운 적 공격과 근접 저지가 강점이다. 신뢰가 높은 동료는 공격 속도와 위력이 소폭 높아진다. 단 하나의 고정 정답 위치는 없다.</p>
       <p><b>전투 투척물</b> — 수류탄은 처음 3개만 주어지며, 쓰면 없어지고 탐색·수첩·원정에서 드물게 찾아야 한다. 화염병은 별도 재고가 아니라 <b>현재 물자 1개를 소비</b>해 던진다. 전투에서 두 버튼 중 하나를 선택하고 감염자가 모인 눈밭을 누르자.</p>
       <p><b>방어 공사</b> — 바리케이드는 빠르고 저렴하다. 참호와 모래주머니는 물자가 더 들지만 방어선을 크게 강화한다. 함정은 한 번 설치하면 실제 발동한 밤 기준 최대 2회 유지되며, 아무도 오지 않거나 은신에 성공한 밤에는 소모되지 않는다.</p>
       <p><b>긴급 수리</b> — 조피아가 동료라면 밤 전투에서 <b>수리 모드</b>로 전환할 수 있다. 수리 중에는 사격하지 않으며, 한 번 시도할 때마다 물자 1을 소모한다. 성공률은 기본 70%, 바리케이드 배치 시 80%이고, 실패해도 물자를 잃는다. 한밤중 최대 2회까지 시도할 수 있다. 마리는 응급처치를 맡는다.</p>
@@ -1724,11 +1725,11 @@ function frame(ctx,x,y,w,h,fill){ // 도트 액자
 const DF={W:320,H:180,WALLX:112,DOORX:44,SPAWNX:328,ROWS:[150,158,166]};
 const DFK={melee:4.8,k:1.5,n:2.1,w:4.3,g:2.5,hpx:6,zs:.67,boss:3,bossLeak:6,spd:1};
 const DF_SLOTS={
-  tower:{x:33,y:47,range:330,n:'종탑',tip:'높아서 숲 끝까지 닿는다'},
-  win1: {x:4, y:91,range:220,n:'왼쪽 창가',tip:'창문에서 넓게 쏜다'},
-  win2: {x:46,y:91,range:220,n:'오른쪽 창가',tip:'창문에서 넓게 쏜다'},
-  front1:{x:70,y:113,range:160,front:true,n:'바리케이드',tip:'담장에 붙은 놈을 빨리 처치'},
-  front2:{x:89,y:113,range:160,front:true,n:'바리케이드',tip:'담장에 붙은 놈을 빨리 처치'},
+  tower:{x:33,y:47,range:330,n:'종탑',tip:'사거리 가장 김 · 단발 위력 증가, 사격 속도는 느림'},
+  win1: {x:4, y:91,range:220,n:'왼쪽 창가',tip:'사격 속도 빠름 · 중거리 담당'},
+  win2: {x:46,y:91,range:220,n:'오른쪽 창가',tip:'폭발 범위 증가 · 중거리 지원'},
+  front1:{x:70,y:113,range:160,front:true,n:'바리케이드',tip:'사거리 짧음 · 근접 저지와 가까운 적 공격 유리'},
+  front2:{x:89,y:113,range:160,front:true,n:'바리케이드',tip:'사거리 짧음 · 근접 저지와 가까운 적 공격 유리'},
   door1:{x:20,y:122,range:120,n:'정문',hidden:true},
   door2:{x:38,y:122,range:120,n:'정문',hidden:true},
 };
@@ -1759,6 +1760,19 @@ function dfDefault(units){
   ['emil','ibra','me','jack','enzo','marie','zofia','yusuf','leon'].filter(u=>units.includes(u)).forEach(u=>{ const s=pref[u].find(x=>!used.has(x)); used.add(s); pl[u]=s; });
   return pl;
 }
+// 위치마다 사거리·공격 간격·단발 위력·광역 범위가 다르다.
+function dfSlotMod(u,P){
+  const slot=u.s,front=!!DF_SLOTS[slot].front;
+  const trust=Math.max(-6,Math.min(6,(P.bond&&P.bond[u.id])||0));
+  const trustFast=trust>=4?.92:trust<=-2?1.07:1;
+  const trustPower=trust>=4?1.08:1;
+  return {
+    cd:(slot==='tower'?1.13:slot==='win1'?.87:slot==='win2'?.96:front?.94:1)*trustFast,
+    dmg:(slot==='tower'?1.1:front?1.13:1)*trustPower,
+    blast:slot==='win2'?1.2:1,
+    trust
+  };
+}
 function dfCreate(P,place){
   const plan=dfPlan(P); const max=P.dp*DFK.w;
   return {P,plan,weather:(P.darkNight?'snow':(P.seed%2?'snow':'moon')),t:0,si:0,z:[],wall:max,max,
@@ -1779,14 +1793,15 @@ function dfStep(st,dt){
   st.t+=dt; const pl=st.plan;
   while(st.si<pl.list.length && pl.list[st.si].t<=st.t){ dfSpawn(st,pl.list[st.si]); st.si++; }
   const leon=st.units.find(u=>u.id==='leon'); const fr=dfFront(st);
-  const supply=st.units.some(u=>u.id==='yusuf') ? .8 : 1;
+  const y=st.units.find(u=>u.id==='yusuf');
+  const supply=y ? (y.s==='win1'||y.s==='win2'?.78:y.s==='tower'?.9:.86) : 1;
   const brace=1; // 조피아의 전투 내구도 상시 증폭을 제거. 긴급 수리·방어 공사에 집중한다.
   const meleeT = DFK.melee*(fr>=2?.55:fr===1?.75:1);
   if(st.shake>0) st.shake-=dt;
   for(const z of st.z){
     if(z.hit>0) z.hit-=dt;
     if(z.stun>0){ z.stun-=dt; continue; }
-    let sp=z.spd; if(leon){ if(leon.s==='tower') sp*=.72; else if(z.x<DF.WALLX+160) sp*=.6; }
+    let sp=z.spd; if(leon){ if(leon.s==='tower') sp*=.84; else if(DF_SLOTS[leon.s].front && z.x<DF.WALLX+105) sp*=.46; else if(z.x<DF.WALLX+160) sp*=.58; }
     const stop=DF.WALLX+4+z.row*2;
     if(z.x>stop || st.wall<=0){
       const before=z.x; z.x-=sp*dt;
@@ -1808,7 +1823,7 @@ function dfStep(st,dt){
     }
   }
   for(const u of st.units){
-    const U=DF_UNITS[u.id], S2=DF_SLOTS[u.s]; if(u.fl>0) u.fl-=dt; if(U.kind==='bell'||U.kind==='supply'||U.kind==='medic') continue;
+    const U=DF_UNITS[u.id], S2=DF_SLOTS[u.s], mod=dfSlotMod(u,st.P); if(u.fl>0) u.fl-=dt; if(U.kind==='bell'||U.kind==='supply'||U.kind==='medic') continue;
     // 조피아: 수리 모드에서는 사격하지 않는다. 보수는 공격과 같은 행동 주기를 사용한다.
     if(U.kind==='gunfix' && u.repair){
       if(st.wall<=0 || st.repairAttempts>=2 || st.supLeft<1){u.repair=false;u.cd=Math.max(u.cd,.7);continue;}
@@ -1833,15 +1848,15 @@ function dfStep(st,dt){
     const inR=z=>z.hp>0&&!z.boss&&z.x<DF.SPAWNX-4&&(z.x-DF.WALLX)<=S2.range;
     if(U.kind==='gun'||U.kind==='gunfix'){
       const tg=st.z.filter(inR).sort((a,b)=>a.x-b.x)[0];
-      if(tg){ tg.hp-=U.dmg; tg.hit=.15; u.cd=U.cd*DFK.k*supply; u.fl=.12; st.fx.push({k:'shot',sx:S2.x+16,sy:S2.y+8,x:tg.x,y:DF.ROWS[tg.row]-8,t:.12},{k:'num',x:tg.x,y:DF.ROWS[tg.row]-20,v:'-'+U.dmg,t:.7}); }
+      if(tg){ const dmg=U.dmg*mod.dmg;tg.hp-=dmg; tg.hit=.15; u.cd=U.cd*DFK.k*supply*mod.cd; u.fl=.12; st.fx.push({k:'shot',sx:S2.x+16,sy:S2.y+8,x:tg.x,y:DF.ROWS[tg.row]-8,t:.12},{k:'num',x:tg.x,y:DF.ROWS[tg.row]-20,v:'-'+Math.round(dmg*10)/10,t:.7}); }
     } else if(U.kind==='nade'){
       const tg=st.z.filter(inR).sort((a,b)=>a.x-b.x)[0];
-      if(tg){ st.z.forEach(z=>{ if(z.hp>0&&!z.boss&&Math.abs(z.x-tg.x)<=16){ z.hp-=U.dmg; z.hit=.2; } });
-        u.cd=U.cd*DFK.k; u.fl=.2; st.fx.push({k:'boom',x:tg.x,y:DF.ROWS[tg.row]-4,t:.6,seed:Math.floor(st.t*100)},{k:'num',x:tg.x,y:DF.ROWS[tg.row]-24,v:'-'+U.dmg,t:.7}); }
+      if(tg){ st.z.forEach(z=>{ if(z.hp>0&&!z.boss&&Math.abs(z.x-tg.x)<=16*mod.blast){ z.hp-=U.dmg*mod.dmg; z.hit=.2; } });
+        u.cd=U.cd*DFK.k*mod.cd; u.fl=.2; st.fx.push({k:'boom',x:tg.x,y:DF.ROWS[tg.row]-4,t:.6,seed:Math.floor(st.t*100)},{k:'num',x:tg.x,y:DF.ROWS[tg.row]-24,v:'-'+U.dmg,t:.7}); }
     } else if(U.kind==='blast'){
       const tg=st.z.filter(inR).sort((a,b)=>a.x-b.x)[0];
-      if(tg){ st.z.forEach(z=>{ if(z.hp>0&&!z.boss&&Math.abs(z.x-tg.x)<=24){ z.hp-=U.dmg; z.hit=.2; } });
-        u.cd=U.cd*DFK.k; u.fl=.2; st.shake=.3; st.fx.push({k:'boom',x:tg.x,y:DF.ROWS[tg.row]-4,t:.6,seed:Math.floor(st.t*100)+3},{k:'boom',x:tg.x+10,y:DF.ROWS[tg.row]-2,t:.6,seed:Math.floor(st.t*100)+9},{k:'num',x:tg.x,y:DF.ROWS[tg.row]-24,v:'-'+U.dmg,t:.7}); }
+      if(tg){ st.z.forEach(z=>{ if(z.hp>0&&!z.boss&&Math.abs(z.x-tg.x)<=24*mod.blast){ z.hp-=U.dmg*mod.dmg; z.hit=.2; } });
+        u.cd=U.cd*DFK.k*mod.cd; u.fl=.2; st.shake=.3; st.fx.push({k:'boom',x:tg.x,y:DF.ROWS[tg.row]-4,t:.6,seed:Math.floor(st.t*100)+3},{k:'boom',x:tg.x+10,y:DF.ROWS[tg.row]-2,t:.6,seed:Math.floor(st.t*100)+9},{k:'num',x:tg.x,y:DF.ROWS[tg.row]-24,v:'-'+U.dmg,t:.7}); }
 
     }
   }
@@ -2014,7 +2029,7 @@ function dfOpen(P,done){
   const scout = P.known ? `🔭 정찰 결과: 감염자 ${cnt.w}${cnt.b?` · 거구 ${cnt.b}`:''}${cnt.h?` · 사냥꾼 ${cnt.h}`:''}${cnt.B?' · 🗿거인':''} — 중간에 큰 물결이 한 번 온다`
     : P.radio ? `📻 잭: "대충 ${Math.round(plan.N/10)*10}마리쯤… 정확히는 몰라."` : '얼마나 올지 모른다. (정찰하면 무리 구성이 보인다)';
   const placeText=()=>{ top.innerHTML=`<b>🌙 ${dateStr()} 밤 — 습격!</b> 담장 내구 ${P.dp}<br><span>${scout}</span>${P.boss?'<br><span style="color:#e7b6ff">🗿 거인에게는 총알이 듣지 않는다. 나타나면 교과서 개념을 입력해 맞혀라! (3번)</span>':''}<br><span>직접 던질 것: 💣 수류탄 ${P.nades||0} · 🔥 화염병 ${P.fires||0}${P.units.includes('zofia')?' · 🔧 조피아 긴급 수리(물자 1/회 · 밤당 2회 · 실패 가능)':''}</span>`;
-    const s=ui.sel; tip.innerHTML = !s ? '아래 카드를 누르고, 빛나는 자리를 누르면 배치가 바뀐다.' : s==='trap' ? '덫: 눈밭 바닥을 누르면 그 자리로 옮긴다. 밟은 놈은 다치고 거구·거인은 잠시 묶인다.' : `<b>${DF_UNITS[s].n}</b> — ${DF_UNITS[s].tip} · 지금 자리: ${DF_SLOTS[place.units[s]].n} (${DF_SLOTS[place.units[s]].tip})`; };
+    const s=ui.sel; tip.innerHTML = !s ? '배치 전략: 종탑=장거리·강한 한 발, 왼쪽 창가=빠른 사격, 오른쪽 창가=광역 지원, 전방=근접 저지. 동료의 신뢰도도 사격 효율에 반영된다. 카드를 눌러 위치를 바꿔 보자.' : s==='trap' ? '덫: 눈밭 바닥을 누르면 그 자리로 옮긴다. 밟은 놈은 다치고 거구·거인은 잠시 묶인다.' : `<b>${DF_UNITS[s].n}</b> — ${DF_UNITS[s].tip} · 지금 자리: ${DF_SLOTS[place.units[s]].n} (${DF_SLOTS[place.units[s]].tip})`; };
   const L=e=>{ const r=cv.getBoundingClientRect(); return {x:(e.clientX-r.left)/r.width*DF.W, y:(e.clientY-r.top)/r.height*DF.H}; };
   const act=document.getElementById('dfAct');
   const inv={nade:P.nades||0, fire:P.fires||0}; ui.arm = inv.nade?'nade':inv.fire?'fire':null;
@@ -2839,7 +2854,7 @@ function night(stance){
   sfx('thump');
   log(pick(APPROACH[p<=6?'s':p<=12?'m':'l'])+` <span class="sys">(습격 규모 ${p} / 방어력 ${dp})</span>`,'story');
   const units=['me',...S.squad.map(m=>m.id)].filter(u=>u==='me'?!S.quarantine:ok(u));
-  const P={nades:S.grenades||0,fires:S.sup,sup:S.sup,p,dp,nt,bruteHit,boss:!!S.bigWave,traps,darkNight:S.darkNight,units,known:S.known||S.tactics.has('enigma'),radio:ok('jack'),seed:(Date.now()+S.day*7919)%2147483647};
+  const P={nades:S.grenades||0,fires:S.sup,sup:S.sup,p,dp,nt,bruteHit,boss:!!S.bigWave,traps,darkNight:S.darkNight,bond:{...S.bond},units,known:S.known||S.tactics.has('enigma'),radio:ok('jack'),seed:(Date.now()+S.day*7919)%2147483647};
   const big = S.bigWave || nt==='brute' || nt==='hunter' || p>=14 || !S.flags.dfTut;
   if(big){ S.flags.dfTut=true; log(S.bigWave?'🗿 땅이 울린다. 이번 습격은 다르다. 모두 자리로!':'⚔️ 큰 습격이다! 모두 자리로!','bad'); } else P.auto=true;
   dfOpen(P,res=>nightResult(res,p,dp,nt,bruteHit));
