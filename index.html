@@ -2097,10 +2097,38 @@ function dfDraw(ctx,st,ui){
 function performanceNow(){ return (typeof performance!=='undefined'&&performance.now)?performance.now():Date.now(); }
 
 /* ---------- 보스 문제 ---------- */
-function dfAskData(){ S.quizRecap=false;let idx=draw('cho','boss');if(idx<0){ const available=CHO.map((_,i)=>i).filter(i=>!S.used.cho.has(i));idx=available.length?available[0]:Math.floor(Math.random()*CHO.length);}const Q=CHO[idx]; S.total++; return {Q,i:idx,code:toCho(Q.a[0])}; }
+function dfAskData(){
+  S.quizRecap=false;
+  let idx=draw('cho','boss');
+  if(idx>=0){
+    const Q=CHO[idx];S.total++;
+    return {kind:'cho',Q,i:idx,code:toCho(Q.a[0]),recap:!!S.quizRecap};
+  }
+  // 초성 문제 42개를 모두 푼 뒤에는 미출제 객관식의 핵심 용어를 입력 문제로 전환한다.
+  // 새로운 객관식 문제를 소진한 경우에만 21일 이상 지난 복습으로 넘어간다.
+  const candidates=MC.map((Q,i)=>({Q,i})).filter(({Q,i})=>{
+    const answer=Q.o[Q.a];
+    return !S.used.mc.has(i)&&answer.length>=2&&answer.length<=18
+      && !/(모두|해당|옳지|아닌|두 가지|복수)/.test(Q.q)
+      && /(무엇|누구|어느|어떤|나라|사건|정책|운동|제도|인물|조약|전투|혁명|체제|기구|조직|선언|회의|이론|사상)/.test(Q.q);
+  });
+  if(candidates.length){
+    const c=candidates.find(({i})=>!S.quizTopics||S.quizTopics[quizTopic('mc',i)]==null||S.day-S.quizTopics[quizTopic('mc',i)]>=7)||candidates[0];
+    S.used.mc.add(c.i);S.quizTopics=S.quizTopics||{};S.quizTopics[quizTopic('mc',c.i)]=S.day;
+    S.quizHistory=S.quizHistory||[];S.quizHistory.push({kind:'mc',idx:c.i,day:S.day});
+    S.total++;
+    return {kind:'mc',Q:{h:c.Q.q,a:[c.Q.o[c.Q.a]]},i:c.i,code:toCho(c.Q.o[c.Q.a]),recap:false};
+  }
+  // 모든 새로운 입력용 개념까지 소진한 경우, 예전에 틀린 것 또는 21일 지난 낱말만 복습한다.
+  const eligible=CHO.map((Q,i)=>({Q,i,last:(S.quizHistory||[]).filter(t=>t.kind==='cho'&&t.idx===i).slice(-1)[0]}))
+    .filter(x=>x.last&&S.day-x.last.day>=21);
+  const c=eligible.length?eligible[0]:{Q:CHO[Math.floor(Math.random()*CHO.length)],i:0};
+  S.quizRecap=true;S.total++;
+  return {kind:'cho',Q:c.Q,i:c.i,code:toCho(c.Q.a[0]),recap:true};
+}
 function dfAnswer(d,ok){
-  if(ok){ S.correct++; S.streak++; S.maxStreak=Math.max(S.maxStreak,S.streak);if(!S.quizRecap)change({kn:1}); }
-  else { S.streak=0; S.missed.push({q:`[거인 앞에서 외친 말] ${d.Q.h} (${d.code})`,a:d.Q.a[0],e:''}); scheduleReview('cho',d.i); }
+  if(ok){S.correct++;S.streak++;S.maxStreak=Math.max(S.maxStreak,S.streak);if(!d.recap)change({kn:1});}
+  else {S.streak=0;S.missed.push({q:`[거인 앞에서 외친 말] ${d.Q.h} (${d.code})`,a:d.Q.a[0],e:''});scheduleReview(d.kind,d.i);}
 }
 function dfHeadlessAsk(cb){ const d=dfAskData(); const ok=Math.random()<.6; dfAnswer(d,ok); cb(ok); }
 
