@@ -2679,9 +2679,9 @@ function checkpoint(done){
 
 /* ================= 밤 ================= */
 const DUSK = ['해가 숲 너머로 넘어간다. 눈 덮인 들판이 다시 붉은빛으로 물든다.','그림자가 길어질수록 숲에서 들리는 울음소리가 가까워진다.','에밀이 사냥총의 노리쇠를 당겼다. 철컥. 모두가 그 소리에 정신을 차렸다.','마리가 남은 양초를 세었다. 오늘 밤은 몇 개를 켤 수 있을까.','잭이 무전기의 다이얼을 천천히 돌린다. 잡음뿐이다.'];
-// 은신의 기본 성공률은 50%로 시작한다. 시도할 때마다 다음 시도의 기본 성공률이 5%p 낮아진다.
+// 은신의 기본 성공률은 60%로 시작한다. 시도할 때마다 2%p 감소하며 기본 최저 20%를 유지한다.
 // 하루가 지나는 것만으로는 감소하거나 회복하지 않는다. 전술·동료 보너스는 기존대로 적용한다.
-function hideRate(){ const base=Math.max(10,50-5*(S.hideUses||0)); return clamp(base + (S.tactics.has('gandhi')?20:0) + (S.flags.hideBoost?10:0) + (ok('ibra')?10:0), 10, 85); }
+function hideRate(){ const base=Math.max(20,60-2*(S.hideUses||0)); return clamp(base + (S.tactics.has('gandhi')?20:0) + (S.flags.hideBoost?10:0) + (ok('ibra')?10:0), 20, 85); }
 function dusk(){
   log(`— ${dateStr()} 해 질 녘 —`,'head');
   if(S.request && !S.reqDone){ const m=mate(S.request.who); if(m.alive){ log(`${J(m.name.split(' ')[0],'이가')} 아무 말 없이 고개를 돌렸다. 오늘의 부탁은 끝내 들어주지 못했다.`,'sys'); bond(S.request.who,-1,true); } S.request=null; }
