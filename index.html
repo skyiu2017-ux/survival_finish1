@@ -2257,9 +2257,9 @@ function frame(ctx,x,y,w,h,fill){ // 도트 액자
 const DF={W:320,H:180,WALLX:112,DOORX:44,SPAWNX:328,ROWS:[150,158,166]};
 const DFK={melee:4.8,k:1.70,n:2.1,w:4.3,g:2.5,hpx:6,zs:.67,boss:3,bossLeak:6,spd:1};
 const DF_SLOTS={
-  tower:{x:74,y:21,h:20,range:330,n:'종탑',tip:'사거리 가장 김 · 단발 위력 증가, 사격 속도는 느림'},
-  win1: {x:20,y:64,h:18,range:220,n:'왼쪽 창가',tip:'사격 속도 빠름 · 중거리 담당'},
-  win2: {x:44,y:67,h:18,range:220,n:'오른쪽 창가',tip:'폭발 범위 증가 · 중거리 지원'},
+  tower:{x:74,y:21,h:20,recess:-2.7,range:330,n:'종탑',tip:'사거리 가장 김 · 단발 위력 증가, 사격 속도는 느림'},
+  win1: {x:20,y:64,h:18,recess:-2.7,range:220,n:'왼쪽 창가',tip:'사격 속도 빠름 · 중거리 담당'},
+  win2: {x:44,y:67,h:18,recess:-2.7,range:220,n:'오른쪽 창가',tip:'폭발 범위 증가 · 중거리 지원'},
   front1:{x:85,y:118,h:23,range:160,front:true,n:'바리케이드',tip:'사거리 짧음 · 근접 저지와 가까운 적 공격 유리'},
   front2:{x:99,y:118,h:24,range:160,front:true,n:'바리케이드',tip:'사거리 짧음 · 근접 저지와 가까운 적 공격 유리'},
   door1:{x:35,y:123,h:22,range:120,n:'정문',hidden:true},
@@ -2608,6 +2608,33 @@ function dfPaintBg(c,mode){
 // The atlas uses tight crops. Use each row's standing height as the scale
 // so a crouching or fallen frame stays low instead of stretching upright.
 const combatSheet=new Image();
+// Grade character art once under the blue winter sky. Keep emitted light and fire in their source colours.
+let winterFigures;
+combatSheet.onload=()=>{
+  if(typeof COMBAT_FRAMES==='undefined')return;
+  const atlas=document.createElement('canvas');
+  atlas.width=combatSheet.naturalWidth;atlas.height=combatSheet.naturalHeight;
+  const brush=atlas.getContext('2d');
+  brush.drawImage(combatSheet,0,0);
+  const pixels=brush.getImageData(0,0,atlas.width,atlas.height), out=pixels.data;
+  const src=new Uint8ClampedArray(out), step=4*atlas.width;
+  for(const role of new Set([...Object.values(COMBAT_ROLES),...Object.values(INFECTED_ROWS)])){
+    for(const [x,y,w,h] of COMBAT_FRAMES[role]){
+      for(let j=y+1;j<y+h-1;j++)for(let i=x+1;i<x+w-1;i++){
+        const k=j*step+i*4;if(!src[k+3])continue;
+        const luma=.24*src[k]+.63*src[k+1]+.13*src[k+2];
+        const shade=1-luma/255;
+        const solid=Math.min(src[k-1],src[k+7],src[k-step+3],src[k+step+3])>220;
+        for(let c=0;c<3;c++){
+          const v=src[k+c], detail=solid?v-(src[k-4+c]+src[k+4+c]+src[k-step+c]+src[k+step+c])*.25:0;
+          const sky=c===2?12*shade:c===0?-5*shade:0;
+          out[k+c]=v*.85+luma*.15+detail*.46+sky;
+        }
+      }
+    }
+  }
+  brush.putImageData(pixels,0,0);winterFigures=atlas;
+};
 combatSheet.src='assets/combat-frames.png';
 function paintCombat(ctx,key,index,x,y,scale,flip=false,centered=false){
   if(!combatSheet.naturalWidth||typeof COMBAT_FRAMES==='undefined')return false;
@@ -2616,13 +2643,14 @@ function paintCombat(ctx,key,index,x,y,scale,flip=false,centered=false){
   const [sx,sy,w,h]=frames[Math.max(0,Math.min(frames.length-1,index))];
   ctx.save();ctx.translate(x,y);ctx.scale(flip?-scale:scale,scale);
   ctx.imageSmoothingEnabled=true;
-  ctx.drawImage(combatSheet,sx,sy,w,h,-w/2,centered?-h/2:-h,w,h);
+  ctx.imageSmoothingQuality='high';
+  ctx.drawImage(winterFigures||combatSheet,sx,sy,w,h,-w/2,centered?-h/2:-h,w,h);
   ctx.restore();return true;
 }
 const COMBAT_ROLES={me:'leader',emil:'rifleman',ibra:'scout',jack:'demolition',marie:'medic',leon:'lookout',zofia:'engineer',enzo:'demolition',yusuf:'civilian'};
 const ROLE_FRAMES={
-  leader:{idle:0,aim:14,fire:16,recover:18},rifleman:{idle:0,aim:4,fire:5,recover:6},
-  scout:{idle:0,aim:4,fire:5,recover:4},engineer:{idle:0,aim:10,fire:12,recover:11}
+  leader:{idle:14,aim:14,fire:16,recover:18},rifleman:{idle:4,aim:4,fire:5,recover:6},
+  scout:{idle:4,aim:4,fire:5,recover:4},engineer:{idle:0,aim:10,fire:12,recover:11}
 };
 function stationScale(id,slot){
   const key=COMBAT_ROLES[id];
@@ -2633,7 +2661,7 @@ function stationScale(id,slot){
 function shotOrigin(id,slot){
   const tip=({me:[26,28],emil:[40,21],ibra:[38,22],zofia:[29,17]})[id]||[18,14];
   const ratio=stationScale(id,slot)/.67;
-  return {x:slot.x+8+tip[0]*ratio,y:slot.y+19-tip[1]*ratio};
+  return {x:slot.x+8+(slot.recess||0)+tip[0]*ratio,y:slot.y+19-tip[1]*ratio};
 }
 function actorCel(u,threat,retreating,t,moving){
   const role=COMBAT_ROLES[u.id], shots=ROLE_FRAMES[role];
@@ -2658,6 +2686,12 @@ const STATION_OPENINGS={
   tower:[[77.7,36.7],[77.7,22],[78.5,19.5],[80.7,17.7],[83.5,17],[86,18.4],[87.9,21],[88,35.7]],
   win1:[[23.1,77.6],[23.1,66.3],[24,63.5],[26.4,61.3],[29,60.8],[31.7,62],[34.7,65.7],[35,78.1]],
   win2:[[47,79.6],[47,68.6],[48.5,65.8],[51,64.5],[53.8,64.8],[56.6,67.4],[57.1,69],[57.1,80.1]]
+};
+// Only the projecting weapon crosses the near stone jamb. The rest of the figure stays inside.
+const BARREL_BANDS={
+  leader:{14:[-39,-29],16:[-47,-38],18:[-46,-37]},
+  rifleman:{4:[-32,-24],5:[-38,-27],6:[-35,-25]},
+  scout:{4:[-39,-29],5:[-39,-29]},engineer:{12:[-30,-24]}
 };
 function stationPath(ctx,points){
   ctx.beginPath();points.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));ctx.closePath();
@@ -2712,12 +2746,18 @@ function dfDraw(ctx,st,ui){
     const breath=moving&&ui&&ui.phase==='run'?(1+Math.sin(t*2.1+i*1.7))*.18:0;
     const role=COMBAT_ROLES[u.id];
     const cel=actorCel(u,threat,retreating,t,moving);
-    const bodyX=ux+8-recoil*1.1,feet=uy+19;
+    const bodyX=ux+8+(retreating?0:(S2.recess||0))-recoil*1.1,feet=uy+19;
     ctx.save();
     if(hiBg&&!retreating&&STATION_OPENINGS[u.s])aperture(ctx,u.s);
     const illustrated=paintCombat(ctx,role,cel,bodyX,feet,stationScale(u.id,S2));
     if(!illustrated&&!RS_ART.actor(ctx,u.id,ux,uy,aim,recoil,stride,breath))pdraw(ctx,G.u[u.id],Math.round(ux-recoil),Math.round(uy+breath));
     ctx.restore();
+    const band=BARREL_BANDS[role]?.[cel];
+    if(illustrated&&hiBg&&S2.recess&&!retreating&&band){
+      const scale=stationScale(u.id,S2), edge=STATION_OPENINGS[u.s].at(-1)[0];
+      ctx.save();ctx.beginPath();ctx.rect(edge-.25,feet+band[0]*scale,30,(band[1]-band[0])*scale);ctx.clip();
+      paintCombat(ctx,role,cel,bodyX,feet,scale);ctx.restore();
+    }
     if(u.fl>0 && !retreating && (kind==='gun'||kind==='gunfix')){
       const tip=shotOrigin(u.id,S2);
       if(!paintCombat(ctx,'muzzle',Math.min(3,Math.floor((.12-u.fl)*28)),tip.x-recoil,tip.y,.28,false,true)){
@@ -2762,6 +2802,9 @@ function dfDraw(ctx,st,ui){
     const row=INFECTED_ROWS[z.type],cycle=Math.floor((z.ph+Math.max(0,DF.SPAWNX+14-drawX))*.43);
     const contact=z.type==='B'?3:z.type==='b'?6:z.type==='h'?5:7;
     const cel=!moving?0:z.hit>.02?contact+1:striking?contact+Math.floor(t*6+z.ph)%2:cycle%(z.boss?2:z.type==='w'?7:5);
+    ctx.save();ctx.fillStyle='rgba(33,34,55,.30)';ctx.beginPath();
+    ctx.ellipse(drawX,DF.ROWS[z.row]-.2,z.boss?19:heavy?10:7,z.boss?2.7:1.45,0,0,Math.PI*2);
+    ctx.fill();ctx.restore();
     const illustrated=paintCombat(ctx,row,cel,drawX,DF.ROWS[z.row],infectedScale(z.type),true);
     const atlas=illustrated||RS_ART.enemy(ctx,z,drawX,frame,bend,stride,crouch);
     const width=atlas?(z.boss?84:heavy?36:26):fr.w, height=atlas?(z.boss?78:heavy?35:29):fr.h;
