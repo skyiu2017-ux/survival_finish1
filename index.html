@@ -171,6 +171,7 @@ th{color:var(--dim);font-weight:400}
       <p><b>밤의 날씨와 탐색</b> — 밤마다 하늘이 변한다. 달빛 없는 흐린 밤은 숨기 좋지만 화염병 불빛은 더 눈에 띈다. 반복해서 탐색한 장소는 남은 자원이 줄며, 바스토뉴 보급창 원정은 한 번만 성공적으로 방문할 수 있다.</p>
       <p><b>동료 배치</b> — 종탑은 긴 사거리와 단발 위력이 장점이지만 발사가 느리다. 왼쪽 창가는 빠른 사격, 오른쪽 창가는 넓은 폭발 공격, 바리케이드는 가까운 적 공격과 근접 저지가 강점이다. 신뢰가 높은 동료는 공격 속도와 위력이 소폭 높아진다. 단 하나의 고정 정답 위치는 없다.</p>
       <p><b>전투 투척물</b> — 수류탄은 처음 3개만 주어지며, 쓰면 없어지고 탐색·수첩·원정에서 드물게 찾아야 한다. 화염병은 별도 재고가 아니라 <b>현재 물자 1개를 소비</b>해 던진다. 전투에서 두 버튼 중 하나를 선택하고 감염자가 모인 눈밭을 누르자.</p>
+      <p><b>거점 보관 한도</b> — 식량 최대 24, 물자 최대 24, 방어선 최대 65. 저장고에 들어가지 않는 보급품은 더 쌓이지 않는다. 식량은 추운 겨울에는 늦게, 따뜻해지는 봄에는 더 빠르게 상한다. 방어 시설도 오랜 시간 방치하면 조금씩 마모된다.</p>
       <p><b>방어 공사</b> — 바리케이드는 빠르고 저렴하다. 참호와 모래주머니는 물자가 더 들지만 방어선을 크게 강화한다. 함정은 한 번 설치하면 실제 발동한 밤 기준 최대 2회 유지되며, 아무도 오지 않거나 은신에 성공한 밤에는 소모되지 않는다.</p>
       <p><b>긴급 수리</b> — 조피아가 동료라면 밤 전투에서 <b>수리 모드</b>로 전환할 수 있다. 수리 중에는 사격하지 않으며, 한 번 시도할 때마다 물자 1을 소모한다. 성공률은 기본 70%, 바리케이드 배치 시 80%이고, 실패해도 물자를 잃는다. 한밤중 최대 2회까지 시도할 수 있다. 마리는 응급처치를 맡는다.</p>
        <p><b>하루 두 번</b> — 낮에는 오전·오후에 한 가지씩, 두 번 행동할 수 있다. <b>같은 일은 하루에 한 번만</b> 할 수 있고, 아침마다 동료가 📌 부탁을 한다. 들어주면 보상과 신뢰를 얻는다.</p>
@@ -788,6 +789,7 @@ const KNOW=[
   {at:50,n:'전시 물자 관리',d:'방어 공사 물자 1 절약 · 겨울 난방은 나흘에 한 번', h:'총력전 시기 각국은 금속·연료·고무 같은 물자를 회수하고 통제하며 전쟁에 필요한 자원을 관리하였다.'},
   {at:75,n:'대서양 헌장의 연대',d:'탐색 때 물자 +1 · 닷새마다 사기 +1(낮을 때)', h:'1941년 연합국은 함께 싸우고 함께 평화를 세우자고 약속했다.'},
 ];
+const FOOD_CAP=24, SUP_CAP=24, DEF_CAP=65;
 function knLv(){ const t=S.knTotal||0; return KNOW.filter(k=>t>=k.at).length; }
 function heatNeed(){ return season()==='winter' ? 1 : 0; }
 function render(){
@@ -797,7 +799,7 @@ function render(){
   $('bHp').style.width=S.hp+'%'; $('bMo').style.width=S.mo+'%';
   $('bHp').style.background=S.hp<30?'var(--red)':'var(--green)';
   $('bMo').style.background=S.mo<30?'var(--red)':'var(--accent)';
-  $('sFood').textContent=S.food; $('sSup').textContent=S.sup; $('sDef').textContent=S.def; $('sKn').innerHTML=`${S.kn}<small style="font-size:10px;color:var(--dim);font-weight:400"> Lv${knLv()}</small>`;
+  $('sFood').textContent=S.food+'/'+FOOD_CAP; $('sSup').textContent=S.sup+'/'+SUP_CAP; $('sDef').textContent=S.def+'/'+DEF_CAP; $('sKn').innerHTML=`${S.kn}<small style="font-size:10px;color:var(--dim);font-weight:400"> Lv${knLv()}</small>`;
   const hurtN=S.squad.filter(m=>m.alive&&m.hurt).length, goneN=S.squad.filter(m=>!m.alive).length;
   $('btnMates').textContent=`👥 동료 ${S.squad.filter(m=>m.alive).length}명${hurtN?` · 🩹${hurtN}`:''}${goneN?` · ✝${goneN}`:''}`;
   $('btnMates').classList.toggle('warn',hurtN>0);
@@ -819,7 +821,7 @@ function change(o){
     const gain=k==='mo'&&o[k]>0?Math.floor(o[k]*(before>=80?.25:before>=60?.60:1)):o[k];
     S[k]+=gain;
     if(k==='kn' && o[k]>0){ S.knTotal=(S.knTotal||0)+o[k]; const lv1=knLv(); if(lv1>lv0){ const K=KNOW[lv1-1]; setTimeout(()=>log(`📜 배움이 쌓였다 — 「${K.n}」 <span class="sys">${K.h}</span><br>이제부터: <b>${K.d}</b>`,'gold'),0); } }
-    if(k==='hp'||k==='mo')S[k]=clamp(S[k],0,100);else if(k==='kn')S[k]=clamp(S[k],0,20);else S[k]=Math.max(0,S[k]);
+    if(k==='hp'||k==='mo')S[k]=clamp(S[k],0,100);else if(k==='kn')S[k]=clamp(S[k],0,20);else if(k==='food')S[k]=clamp(S[k],0,FOOD_CAP);else if(k==='sup')S[k]=clamp(S[k],0,SUP_CAP);else if(k==='def')S[k]=clamp(S[k],0,DEF_CAP);else S[k]=Math.max(0,S[k]);
     const d=S[k]-before; if(!d) continue;
     parts.push(`<span class="${d>0?'good':'bad'}">${NAMES[k]} ${d>0?'+':''}${d}</span>`);
   }
@@ -2460,9 +2462,14 @@ function morning(){
     else { log('땔감이 없다. 밤새 손발이 얼어붙었다.','bad'); change({hp:-8,mo:-5}); }
     if(S.def>2 && chance(.35)){ log('밤새 얼어붙은 바리케이드 한쪽이 갈라졌다.','sys'); change({def:-1}); }
   }
-  if(S.food>30){const spoil=Math.ceil((S.food-30)*.20);change({food:-spoil});log('넘치게 쌓인 식량 일부가 상했다.','sys');}
-  if(S.sup>28 && S.day%3===0){const wet=Math.ceil((S.sup-28)*.09);change({sup:-wet});log('과도하게 비축한 목재와 연료 일부가 젖었다.','sys');}
-  if(ss==='summer' && S.food>6){ log('여름 더위에 쌓아 둔 식량 일부가 상했다.','bad'); change({food:-rnd(1,2)}); }
+  // 겨울에는 식량 부패가 느리고 봄으로 갈수록 저장 식량 손실이 빨라진다.
+  const spoilInterval=ss==='winter'?5:(S.day<65?3:2);
+  if(S.food>=10 && S.day%spoilInterval===0){
+    const spoiled=ss==='winter'?1:Math.min(3,Math.max(1,Math.ceil(S.food*(S.day<65?.07:.11))));
+    change({food:-spoiled});log('저장고의 일부 식량에 곰팡이가 피거나 상해 버렸다. 보관 공간과 계절을 고려해야 한다.','sys');
+  }
+  if(S.sup>=19 && S.day%7===0){change({sup:-1});log('비축한 목재 일부가 습기를 먹어 못 쓰게 되었다.','sys');}
+  if(S.def>=50 && S.day%5===0){change({def:-1});log('오래된 방어 시설 일부가 비바람과 습기로 약해졌다.','sys');}
   // 외출한 동료
   S.squad.forEach(m=>{ if(m.alive&&m.away){ m.away--; if(m.away<=0){ m.away=0; } } });
   if(key==='1945-03-01') log('눈이 녹기 시작했다. 질척한 땅 위에서 놈들의 걸음이 눈에 띄게 둔해졌다. 숨 돌릴 틈이 생겼다.','info');
@@ -2572,7 +2579,7 @@ function dayPhase(){
     {label:'🔦 탐색 나가기',sub:done('explore')?'오늘은 이미 다녀왔다':'식량·물자(장작)를 구한다 · 부상 위험',fn:explorePick,disabled:done('explore')},
     {label:'🛠️ 방어 공사',sub:done('build')?'오늘은 이미 했다':`${tag('build')}방어선을 쌓는다 (현재 ${S.def})`,fn:buildPick,disabled:done('build')},
     {label:'📓 헤이스팅스 대위의 수첩 해독',sub:done('archive')?'오늘은 이미 했다':`${tag('archive')}문제를 풀어 은닉처를 찾는다 · 틀리면 허탕`,fn:()=>{didAct('archive');archive();},disabled:done('archive')},
-    {label:'🛏️ 휴식',sub:done('rest')?'오늘은 이미 쉬었다':`체력 +${heal} · 사기 +6 · 식량 1 추가 소모${S.food?'':' (빈속이면 회복 절반)'}`,fn:()=>{didAct('rest');rest();},disabled:done('rest')},
+    {label:'🛏️ 휴식',sub:done('rest')?'오늘은 이미 쉬었다':`체력 +${heal} · 사기 +3 · 식량 1 추가 소모${S.food?'':' (빈속이면 회복 절반)'}`,fn:()=>{didAct('rest');rest();},disabled:done('rest')},
     {label:'🤝 동료 돌보기',sub:done('care')?'오늘은 이미 했다':`${tag('care')}`+(hurt.length?`부상자 ${hurt.map(m=>m.name).join(', ')} 치료 · 사기 상승`:'이야기를 나누며 사기를 높인다'),fn:()=>{didAct('care');care();},disabled:!aliveMates().length||done('care')},
     {label:'🧭 원정 떠나기',sub:canExpedite()?'2~3일 거점을 비우고 먼 곳의 보급과 사람을 찾는다':(S.exp?'':S.actLeft<2?'원정은 오전에만 떠날 수 있다':S.day<6?'6일째부터 가능':(S.day<(S.expCool||0)?`다음 원정은 ${S.expCool}일째부터`:'함께 갈 동료가 부족하다')),fn:expPick,disabled:!canExpedite()},
     {label:'🔭 종탑 정찰',sub:S.known||S.tactics.has('enigma')?'오늘 밤 규모는 이미 파악했다':`${tag('scout')}오늘 밤 습격 규모를 정확히 파악 + 작은 수확`,fn:()=>{didAct('scout');scout();},disabled:S.known||S.tactics.has('enigma')},
@@ -2669,13 +2676,14 @@ function memoryTest(next){
 function buildPick(){
   const c=(S.tactics.has('newdeal')?1:0)+(knLv()>=4?1:0), tr=S.tactics.has('trench')?2:0, kb=knLv()>=1?1:0;
   choices([
-    {label:'🪵 바리케이드',sub:`물자 ${Math.max(1,2-c)} → 방어선 +${3+kb}`,disabled:S.sup<Math.max(1,2-c),fn:()=>build('bar',Math.max(1,2-c),3+kb)},
-    {label:'⛏️ 참호와 모래주머니',sub:`물자 ${Math.max(2,4-c)} → 방어선 +${5+tr+kb}`,disabled:S.sup<Math.max(2,4-c),fn:()=>build('tr',Math.max(2,4-c),5+tr+kb)},
+    {label:'🪵 바리케이드',sub:`물자 ${Math.max(1,2-c)} → 방어선 +${Math.min(DEF_CAP-S.def,3+kb)} (최대 ${DEF_CAP})`,disabled:S.def>=DEF_CAP||S.sup<Math.max(1,2-c),fn:()=>build('bar',Math.max(1,2-c),3+kb)},
+    {label:'⛏️ 참호와 모래주머니',sub:`물자 ${Math.max(2,4-c)} → 방어선 +${Math.min(DEF_CAP-S.def,5+tr+kb)} (최대 ${DEF_CAP})`,disabled:S.def>=DEF_CAP||S.sup<Math.max(2,4-c),fn:()=>build('tr',Math.max(2,4-c),5+tr+kb)},
     {label:'🪤 함정 설치',sub:S.trap>0?`설치된 함정 유지 중 · 남은 발동 ${S.trap}회`:'물자 1 → 실제 발동하는 밤 기준 최대 2회 유지',disabled:S.sup<1||S.trap>0,fn:()=>build('trap',1,0)},
     {label:'↩ 다른 일을 한다',cls:'ghost',fn:dayPhase},
   ]);
 }
 function build(type,cost,g){
+  if(type!=='trap' && S.def>=DEF_CAP){log('더는 방어 시설을 쌓을 공간이 없다. 현재 방어선을 유지하거나 함정을 보강해야 한다.','info');return buildPick();}
   didAct('build');
   if(type==='bar') log(pick(['교실 책상과 성가대 의자를 끌어다 정문을 막았다.','부서진 침대 틀과 철사로 창문마다 가시 울타리를 쳤다.']),'story');
   if(type==='tr') log(S.tactics.has('trench')?'1차 대전의 참호처럼 지그재그로 깊게 파고, 모래주머니를 이중으로 쌓았다. 언 땅에 곡괭이가 튕겨 나왔다.':'언 땅을 곡괭이로 깨고 도랑을 판 뒤 모래주머니를 쌓았다. 손바닥이 다 까졌다.','story');
