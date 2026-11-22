@@ -3163,11 +3163,14 @@ function nightResult(res,p,dp,nt,bruteHit){
     const gap=-margin;
     log(pick(BREACH),'bad');
     log(tl.slice(0,2).join(' '),'story');
-    if(S.sup>0){ const ls=Math.ceil(S.sup*.3); change({sup:-ls}); log(`📦 놈들이 창고를 헤집어 물자 ${ls}을 잃었다. (남은 물자의 30%)`,'bad'); }
+    if(S.sup>0 && res.leaks>=3){ const ls=Math.min(4,Math.max(1,Math.ceil(S.sup*.12))); change({sup:-ls}); log(`📦 창고에 닿은 놈들이 물자 ${ls}을 훼손했다.`,'bad'); }
     let dmg=Math.min(45,Math.round(res.leaks*1.5)); log(`🩸 안으로 들어온 감염자 ${res.leaks}마리${res.boss==='broke'?' (거인은 6마리 몫)':''} → 체력 -${dmg} (두 마리당 3)`,'bad');
     if(ok('marie')){ const saved=Math.max(1,Math.round(dmg*.1)); dmg=Math.max(0,dmg-saved); log(`🩹 마리가 응급처치로 피해를 ${saved} 줄였다.`,'info'); }
     if(S.tactics.has('adwa')){ dmg=Math.round(dmg*.6); log('스탈린그라드의 병사들처럼, 아무도 물러서지 않았다. (피해 40% 감소)','info'); }
-    const loss={hp:-dmg,mo:-6,def:-Math.ceil(S.def/2)-1};
+    // 유입 1~3마리로 방어선 절반이 사라지는 연쇄 붕괴 방지.
+    // 실내 유입은 체력·사기·물자에 이미 피해를 주므로 방어선 손실은 침입 규모에 따라 차등 적용한다.
+    const breachWear=Math.min(22,4+Math.ceil(res.leaks*.7)+(res.broke?4:0));
+    const loss={hp:-dmg,mo:-6,def:-Math.min(S.def,breachWear)};
     if(gap>=3) loss.food=-rnd(1,2);
     if(gap>=5) loss.sup=-rnd(1,2);
     change(loss); note(`밤: 방어선이 뚫렸다(체력 ${loss.hp})`);
