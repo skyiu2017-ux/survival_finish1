@@ -151,6 +151,7 @@ th{color:var(--dim);font-weight:400}
  #dfBtns{order:6;flex-direction:row;flex-wrap:wrap} #dfAct{order:4}
  #dfBtns button,#dfAct button{flex:1;min-height:42px;font-size:14px;padding:4px 8px;word-break:keep-all}
 }
+.schoolMap{display:block;position:relative;width:min(100%,360px);height:94px;margin:8px 0;background:#e5d7b4;color:#302b22;border:1px solid #917f59;border-radius:4px}.schoolMap i{position:absolute;font:600 13px sans-serif}.schoolMap i:nth-child(1){left:9%;top:30%}.schoolMap i:nth-child(2){left:44%;top:32%}.schoolMap i:nth-child(3){left:73%;top:24%}.schoolMap i:nth-child(4){left:6%;top:66%}#historyReflection{width:95%;font:inherit}.share summary,.jl summary{cursor:pointer;padding:6px 0}
 </style>
 </head>
 <body>
@@ -531,6 +532,27 @@ function makeSquad(returning){
   const pick4=new Set(returning && ALL_IDS.includes(returning)?[returning,...shuffle(ALL_IDS.filter(id=>id!==returning)).slice(0,3)]:shuffle(ALL_IDS).slice(0,4));
   return all.filter(m=>pick4.has(m.id));
 }
+// 전후 증언은 교실의 현재 시점에서 읽는 자료다.
+function historicalSourceReadings(){
+  const readings = [
+    {
+      title:'탄광을 떠날 수 있었을까?',
+      source:'미래엔 『역사①』 208쪽, 한국 독립운동사 연구소 구술 자료의 한국인 피해 노동자 증언 요약',
+      text:'1944년 열일곱 살에 일본 규슈의 탄광으로 끌려간 생존자는 세 조로 나뉘어 계속 일했다고 회상했다. 다치는 사람이 많았고 탈출하다가 붙잡히면 폭행을 당했다.',
+      question:'이 노동자가 스스로 일을 그만둘 수 없었다는 것을 어떤 대목에서 알 수 있을까?',
+      evidence:'떠나려 한 사람을 붙잡아 폭행했다는 대목이다. 작업이 위험했다는 사실에 더해, 떠날 자유까지 빼앗겼다는 점에서 강제 노동의 성격이 드러난다.'
+    },
+    {
+      title:'김학순과 김복동은 왜 목소리를 냈을까?',
+      source:'미래엔 『역사①』 209쪽, 일본군 ‘위안부’ 피해자 김학순·김복동의 발언 요약',
+      text:'전쟁 중 일본군 위안소에서는 여성들이 성폭력 피해를 입었다. 1991년 공개 증언에 나선 김학순은 피해 사실을 부인하는 말을 듣고 증언하기로 했다고 밝혔다. 김복동은 피해자의 명예 회복을 위해 일본 정부의 진정한 사죄와 법적 배상을 요구했다.',
+      question:'김학순이 증언한 이유와 김복동이 요구한 것을 각각 한 가지씩 찾아보자.',
+      evidence:'김학순은 피해를 부인하는 주장에 맞서 자신이 겪은 사실을 알렸다. 김복동은 피해자의 명예 회복을 위해 일본 정부의 사죄와 법적 배상을 요구했다.'
+    }
+  ];
+  return '<h3>전쟁 뒤에 남긴 증언</h3>'+readings.map(r=>`<details class="jl"><summary>${r.title}</summary><p>${r.text}</p><small>${r.source}</small><p><b>${r.question}</b></p><details><summary>자료에서 근거 확인</summary><p>${r.evidence}</p></details></details>`).join('');
+}
+
 const TALKS = {
   emil:[
     '에밀이 장작을 패며 말했다. "1914년 여름, 독일군이 중립국이던 벨기에를 밀고 들어왔지. 프랑스로 가는 지름길이라면서. 그때도 이 숲이 불탔어."',
@@ -539,12 +561,12 @@ const TALKS = {
   ],
   jack:[
     '잭이 마른 풀을 씹으며 말했다. "1929년 대공황 때 아버지가 공장에서 잘렸어. 무료 빵 줄에 섰었지. 몇 년 뒤 뉴딜 공사장에서 겨우 일자리를 얻으셨고."',
-    '잭은 진주만 소식을 듣던 날 바로 입대 신청서를 냈다고 했다. "그땐 전쟁이 이렇게 끝날 줄은 몰랐지. 아니, 세상이."',
+    '잭이 접어 둔 지도를 펼쳤다. "난 진주만 소식을 듣고 입대했어. 그런데 중국 사람들에게는 그날이 전쟁의 시작이 아니더군." 그가 만주를 짚었다. "일본군이 1931년 여기를 침략했고, 1937년엔 중국과 전면전을 벌였어. 하와이를 공격한 건 그 뒤인 1941년이야."',
     '"내 형은 노르망디 해변에 상륙했어." 잭이 낡은 사진을 보여 주었다. "디데이, 6월 6일. 살아 있다면 지금쯤 라인강 어딘가겠지."',
   ],
   marie:[
     '마리가 붕대를 말며 말했다. "아버지는 1916년 베르됭에 계셨어요. 참호에서 돌아온 뒤로 밤마다 소리를 지르셨죠. 그 전쟁이 마지막 전쟁일 거라고들 했는데."',
-    '"1940년 6월 파리가 함락되던 날, 라디오에서 드골 장군의 목소리가 들렸어요. 프랑스는 아직 끝나지 않았다고." 마리가 눈을 감았다. "그 말 하나로 4년을 버텼어요."',
+    '"1940년 6월 파리가 함락되고 며칠 뒤, 라디오에서 드골 장군의 목소리가 들렸어요. 프랑스는 아직 끝나지 않았다고." 마리가 눈을 감았다. "그 말 하나로 4년을 버텼어요."',
     '마리가 작게 웃었다. "지난해 4월, 임시 정부가 프랑스 여성에게도 투표권을 준다고 발표했어요. 1차 대전 때 군수 공장에서 일하신 할머니는 끝내 못 보셨지만요."',
   ],
   leon:[
@@ -574,9 +596,13 @@ const CALENDAR = {
  '1945-01-29':{t:'📻 BBC 런던 방송',m:'지난 1월 25일로 연합군이 아르덴 돌출부를 완전히 되찾았다. 12월 16일에 시작된 독일의 마지막 대공세는 실패로 끝났고, 전선은 다시 독일 국경으로 옮겨 가고 있다.',e:'아르덴 대공세(벌지 전투)는 독일이 서부 전선에서 벌인 마지막 대규모 반격이었다.',fx:{mo:3}},
  '1945-02-03':{t:'📻 BBC 런던 방송',m:'소련 신문의 보도가 전해졌다. 지난 1월 27일 소련군이 폴란드의 아우슈비츠라는 수용소를 해방했다고 한다. 살아남은 사람들의 모습은 차마 전할 수 없을 정도라고.',fx:{mo:-5},e:'나치는 아우슈비츠 등 강제 수용소에서 유대인을 계획적으로 학살하였다(홀로코스트). 유대인뿐 아니라 장애인, 정치범 등도 희생되었다.'},
  '1945-02-13':{t:'📻 BBC 런던 방송',m:'루스벨트·처칠·스탈린이 크림반도의 얄타에서 만났다는 발표가 나왔다. 전쟁이 끝나면 독일을 나누어 점령하고, 평화를 지킬 새 국제기구를 만들 회의를 열기로 했다고 한다.'},
- '1945-02-16':{t:'📻 BBC 런던 방송',m:'영국과 미국의 폭격기가 독일 드레스덴에 사흘 동안 융단 폭격을 퍼부었다. 도시 전체가 불탔다고 한다.',fx:{mo:-2},e:'제2차 세계 대전에서는 도시와 산업 지구에 대한 무차별 폭격으로 수많은 민간인이 희생되었다.'},
+ '1945-02-16':{t:'📻 BBC 런던 방송',m:'2월 13일 밤부터 15일까지 영국과 미국이 독일 드레스덴을 폭격했다. 도심의 집들이 불타고 많은 주민이 목숨을 잃었다는 소식이다.',fx:{mo:-2},e:'제2차 세계 대전에서는 도시와 산업 지구에 대한 무차별 폭격으로 수많은 민간인이 희생되었다.'},
+ '1945-02-19':{t:'📻 단파 방송 · 태평양',m:'미 해병대가 오늘 일본 본토 남쪽의 작은 섬 이오지마에 상륙했다. 유럽 지도에서 눈을 떼고 지구본을 돌리자, 태평양 한가운데에서 또 하나의 전선이 보인다.'},
  '1945-03-08':{t:'📻 미군 무전',m:'어제(3월 7일) 미군이 레마겐에서 무너지지 않은 철교를 차지해 라인강을 건넜다.'},
+ '1945-03-10':{t:'📻 단파 방송 · 도쿄',m:'3월 9일 밤부터 10일 새벽 사이, 미군의 소이탄 공격으로 도쿄의 주택가에 큰불이 났다. 목조 주택이 빽빽한 동네에서 많은 주민이 피해를 입었다.'},
+ '1945-04-01':{t:'📻 단파 방송 · 오키나와',m:'미군이 오늘 일본 규슈 남서쪽의 오키나와섬에 상륙했다. 섬에는 군인뿐 아니라 밭을 일구고 마을에서 살아가던 주민들도 있다.'},
  '1945-04-13':{t:'📻 미군 무전',m:'어제(4월 12일) 루스벨트 대통령이 세상을 떠났다. 부통령 트루먼이 대통령직을 이었다.',fx:{mo:-3},e:'루스벨트는 뉴딜 정책으로 대공황을 극복하려 했고, 전쟁 중 연합국을 이끌었다.'},
+ '1945-04-26':{t:'📻 단파 방송 · 샌프란시스코',m:'미국 현지 시각 4월 25일, 여러 나라 대표들이 샌프란시스코에 모였다. 전쟁이 끝난 뒤 평화를 지킬 국제기구를 어떻게 운영할지, 그 약속을 담을 헌장을 논의하기 시작했다.'},
  '1945-04-28':{t:'📻 BBC 런던 방송',m:'지난 25일 독일 엘베강에서 서쪽에서 온 미군과 동쪽에서 온 소련군이 만났다는 공식 발표가 나왔다. 독일이 두 동강 났다.'},
  '1945-04-30':{t:'📻 BBC 런던 방송',m:'이틀 전 이탈리아 파르티잔이 도망치던 무솔리니를 붙잡아 처형했다는 소식이다.',e:'무솔리니는 1922년 파시스트당을 이끌고 집권해 독재 체제를 세웠다.'},
  '1945-05-02':{t:'📻 BBC 런던 방송',m:'히틀러가 베를린의 지하 벙커에서 죽었다는 독일 방송이 나왔고, 오늘 베를린이 소련군에 항복했다.'},
@@ -657,7 +683,7 @@ function shuffle(a){a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.floor(Ma
 const START = new Date(1945,0,29);
 const WD = ['일','월','화','수','목','금','토'];
 const END_KEY='1945-05-08', REVEAL_DAY=50;
-const NEWS_TOPIC={'1945-01-29':['참호','총력전'],'1945-02-03':['아우슈비츠','홀로코스트','유대인','나치'],'1945-02-13':['대서양 헌장','루스벨트','처칠','소련'],'1945-03-08':['독일','베르사유'],'1945-04-13':['뉴딜','대공황','루스벨트','대서양 헌장'],'1945-04-30':['무솔리니','파시','전체주의','이탈리아'],'1945-05-02':['나치','히틀러','전체주의','게슈타포']};
+const NEWS_TOPIC={'1945-01-29':['아르덴','벌지','바스토뉴'],'1945-02-19':['태평양','진주만'],'1945-03-10':['공습','민간인'],'1945-04-01':['태평양','오키나와'],'1945-04-26':['국제 연합','샌프란시스코'],'1945-02-03':['아우슈비츠','홀로코스트','유대인','나치'],'1945-02-13':['대서양 헌장','루스벨트','처칠','소련'],'1945-03-08':['독일','베르사유'],'1945-04-13':['뉴딜','대공황','루스벨트','대서양 헌장'],'1945-04-30':['무솔리니','파시','전체주의','이탈리아'],'1945-05-02':['나치','히틀러','전체주의','게슈타포']};
 const CHAPTERS={1:['1장','남겨진 숲','독일의 마지막 대공세는 끝났다. 군대는 동쪽으로 떠났지만, 숲에는 열병에 걸린 자들이 남았다.'],38:['2장','라인강을 건너','미군이 레마겐에서 라인강을 건넜다. 전쟁은 독일 땅 깊숙이 들어간다. 그러나 이곳의 밤은 끝나지 않았다.'],75:['3장','마지막 봄','베를린이 가까워진다. 이 전쟁이 끝나면, 열병도 끝날까?']};
 function curDate(){const d=new Date(START);d.setDate(d.getDate()+S.day-1);return d;}
 function calDays(){ return S.day; }
@@ -1202,6 +1228,20 @@ function playBeat(who,b,next){
   },'judge');
 }
 const LETTER_INDEX=MC.push({storyOnly:true,lv:'대화',q:'편지에 그려진 두 줄의 참호를 보며 말을 건넨다.',o:['“양쪽이 참호에서 버티니, 공격하는 쪽이 큰 피해를 입었겠어요.”','“전쟁 내내 양쪽이 휴전해서 그곳을 지켰겠어요.”','“양쪽이 빠르게 진격해서 전선이 매일 멀리 옮겨 갔겠어요.”','“바다에서만 싸워서 육지의 병사들은 전투를 피했겠어요.”'],a:0,e:''})-1;
+// 저장된 문항 번호를 유지하도록 기존 동료 대화 문항 다음에 추가한다.
+MC.push(
+  {lv:'기본',q:'1944년 12월의 아르덴 지도에는 독일 쪽에서 벨기에 쪽으로 들어온 화살표가 있다. 누가 무엇을 시도했을까?',o:['독일군이 서쪽의 연합군에 반격했다','연합군이 프랑스 해안에 상륙했다','소련군이 독일 동부로 진격했다','영국군이 해협을 건너 철수했다'],a:0,e:'아르덴 대공세(벌지 전투)는 서부 전선에서 독일이 전세를 되돌리려고 벌인 마지막 대규모 반격이었다.'},
+  {lv:'기본',q:'벌지 전투 중 바스토뉴에 이르는 길들이 막혔다. 여러 도로가 모이는 이 마을에 포위가 풀렸다는 소식이 오면 무엇이 달라질까?',o:['대서양의 여객선이 다시 다닌다','해협 건너 영국으로 철수할 수 있다','육로로 식량과 의약품을 들여올 수 있다','라인강의 다리를 곧바로 건널 수 있다'],a:2,e:'바스토뉴는 도로가 만나는 곳이었다. 포위망이 뚫리면서 마을 안과 밖이 다시 육로로 연결되었다.'},
+  {lv:'기본',q:'1월 29일 아르덴의 방송은 독일군이 12월에 밀고 들어왔던 지역을 연합군이 되찾았다고 전했다. 벌지 전투의 결과에 맞는 제목은?',o:['독일군, 프랑스 수도 점령','독일의 서부 전선 반격 실패','연합군, 프랑스 해안에서 철수','독일 항복으로 유럽 전쟁 종결'],a:1,e:'1945년 1월 연합군은 독일군의 돌출부를 없앴다. 이후에도 유럽에서 전쟁은 계속되었다.'},
+  {lv:'기본',q:'1940년 독일군이 프랑스로 진격하는 동안, 프랑스 북부 됭케르크에서 많은 영국군과 다른 연합군 병사들을 배에 태웠다. 이 배들의 목적지는?',o:['프랑스 남부 해안','벨기에의 바스토뉴','독일의 라인강','해협 건너 영국'],a:3,e:'됭케르크에서는 고립된 연합군 병력 상당수가 영국으로 철수했다. 독일군은 이후 파리를 점령했고 프랑스 정부는 독일과 휴전했다.'},
+  {lv:'심화',q:'워싱턴 회의(1921~1922)에서 열강은 주요 군함의 보유를 제한하고 중국의 주권과 영토를 존중한다는 원칙에 합의했다. 이 두 의제로 보아 무엇을 조정하려 했을까?',o:['독일의 전쟁 배상과 유럽의 국경','아시아·태평양에서 벌어진 해군 및 이권 경쟁','전쟁 뒤 독일의 분할 점령','동유럽 국가의 사회주의 개혁'],a:1,e:'워싱턴 회의에서 열강은 해군 군비 경쟁을 줄이고 동아시아·태평양의 국제 질서를 조정하려 했다.'},
+  {lv:'기본',q:'1937년 중·일 전쟁 중 일본군이 중국의 수도 난징을 점령하고 포로와 민간인을 대규모로 살해했다. 이 사건은?',o:['만주 사변','진주만 공습','난징 대학살','미드웨이 해전'],a:2,e:'난징 대학살은 일본의 중국 침략 과정에서 점령군이 포로와 민간인을 대상으로 저지른 전쟁 범죄였다.'},
+  {lv:'기본',q:'1930년대 일본에서는 군부의 정치적 영향력이 커지고 군사력을 앞세워 대륙 침략을 확대하였다. 이를 설명하는 말은?',o:['집단 안보','군국주의','민족 자결주의','고립주의'],a:1,e:'일본의 군국주의 세력은 무력으로 영토와 자원을 확보하려 했다. 만주 사변과 중·일 전쟁을 거치며 침략 지역이 넓어졌다.'}
+);
+ORDER.push({t:'동아시아 전쟁은 어떻게 확대되었을까?',items:[
+  ['만주 사변',1931],['중·일 전쟁 시작',1937.07],['일본군의 난징 점령과 난징 대학살',1937.12],['일본의 진주만 공습',1941.12]
+]});
+
 const STORY_PROMPTS={
   emil:'에밀이 장부를 다시 펼쳤다. “여기 적힌 사람들이 어떤 일을 겪었는지, 자네가 기억하는 것부터 얘기해 주게.”',
   jack:'잭이 무전기 소리를 줄였다. “집에서 온 편지를 읽다 보니 궁금해졌어. 자넨 어떻게 배웠어?”',
@@ -1318,13 +1358,79 @@ function itemQuiz(k){
     $('iqBack').onclick=()=>openRecord('items'); render();
   });
 }
+const HISTORY_SCENES = [
+  {day:1, title:'벽지 아래의 지도', year:'1937~1940', text:'떨어진 벽지 아래에 두 장의 신문 지도가 붙어 있다. 중국 지도에는 1937년 일본의 침략으로 전쟁이 크게 번진 곳이, 유럽 지도에는 1939년 독일이 침공한 폴란드가 표시돼 있다. 영국과 프랑스는 독일에 선전 포고했다. 이듬해 독일군은 벨기에를 거쳐 프랑스로 진격했다.', map:true, ask:'폴란드 침공 뒤, 이 학교가 있는 벨기에는 어떻게 전쟁에 휘말렸을까?', options:['독일군이 서쪽의 프랑스를 공격하면서 벨기에도 침공했다.','벨기에가 폴란드와 국경을 맞대고 있어 전투가 곧바로 넘어왔다.'], answer:0, why:'지도에서 독일을 기준으로 폴란드는 동쪽, 벨기에와 프랑스는 서쪽이다. 이곳에는 1940년 독일의 서유럽 침공으로 전쟁이 닥쳤다.'},
+  {day:3, title:'날짜가 다른 두 통의 속보', year:'1941', text:'신문철에서 짤막한 속보 두 장이 떨어진다. 6월, 독일군이 소련을 침공했다. 12월, 일본군이 하와이 진주만의 미군 기지를 공격했다.', ask:'두 번째 속보에 붙일 지도 표지는?', options:['동유럽 · 독일과 소련 사이의 전선','태평양 · 미국과 일본 사이의 전선'], answer:1, why:'진주만 공격 뒤 미국은 일본에 선전 포고했다. 중국에서 이미 싸우고 있던 일본의 전쟁이 태평양의 미국과 벌이는 전쟁으로 확대됐다.'},
+  {day:6, title:'신문 지도에서 뒤바뀐 화살표', year:'1942~1943', text:'오래된 신문 두 장. 첫 장에는 독일군이 소련의 스탈린그라드까지 진격한 길이 그려져 있다. 다음 장에는 그곳에서 독일군이 항복했다는 기사가 실렸다. 태평양에서는 미군이 미드웨이 해전에서 일본 해군을 물리쳤다.', ask:'스탈린그라드 전투 뒤 소련군의 반격을 어느 방향으로 그릴까?', options:['서쪽, 독일 쪽으로','동쪽, 소련 내륙 쪽으로'], answer:0, why:'소련군은 동쪽에서 독일 쪽으로 밀고 들어갔다. 태평양과 유럽 동부에서 전세가 바뀌고 있었다.'},
+  {day:9, title:'접힌 노르망디 지도', year:'1944', text:'6월 6일자 지도에 영국에서 프랑스 북부 노르망디로 건너간 연합군의 길이 보인다. 신문을 펼치니 반대쪽에는 소련군의 진격로도 그려져 있다.', ask:'두 전선의 화살표를 이어 보면?', options:['서쪽 연합군 ← 독일 → 동쪽 소련군','서쪽 연합군 → 독일 ← 동쪽 소련군'], answer:1, why:'노르망디에 상륙한 연합군은 서쪽에서, 소련군은 동쪽에서 독일로 진격했다. 독일은 서쪽 아르덴에서 다시 반격했지만 전세를 뒤집지 못했다.'},
+  {day:11, title:'돌아오지 못한 이웃들', year:'전쟁 중의 민간인', text:'나치는 유대인이라는 이유로 사람들의 권리를 빼앗고 조직적으로 학살했다. 이를 홀로코스트라고 한다. 아시아에서는 1937년 난징을 점령한 일본군이 민간인과 포로를 대규모로 살해했다. 전투 지도에는 희생된 사람들의 이름이 보이지 않는다.'},
+  {day:14, title:'벨기에의 5월, 한국의 8월', year:'게임 밖 역사 후일담', text:'1945년 5월 8일, 벨기에의 라디오는 유럽 전쟁의 끝을 알렸다. 같은 날 한국에 있던 사람도 전쟁이 끝났다고 말할 수 있었을까?', why:'5월 독일이 항복했을 때 한국은 여전히 일본의 식민 지배 아래 있었고 아시아·태평양 전쟁은 계속됐다. 8월 15일 일본이 항복을 발표하면서 한국은 광복을 맞았다. 일본은 9월 2일 항복 문서에 서명했다.'}
+];
+function schoolMap(){
+  return '<span class="schoolMap" role="img" aria-label="유럽 위치 약도. 서쪽에 프랑스와 벨기에, 중앙에 독일, 동쪽에 폴란드"><i>벨기에 ●</i><i>독일 ●</i><i>폴란드 ●</i><i>프랑스 ●</i></span>';
+}
+function historyKey(){return 'RS_HISTORY_SCENES_1_'+S.name;}
+function readHistoryDays(){
+  try {const found=JSON.parse(localStorage.getItem(historyKey())||'[]');return Array.isArray(found)?found:[];}catch(_){return [];}
+}
+function historyEntry(scene){
+  return '<details class="jl"><summary>'+scene.year+' · '+scene.title+'</summary><p>'+scene.text+'</p>'+(scene.map?schoolMap():'')+(scene.ask?'<p>'+scene.ask+'</p>':'')+(scene.why?'<details><summary>설명 확인</summary><p>'+scene.why+'</p></details>':'')+'</details>';
+}
+function historyMorning(next){
+  const scene=HISTORY_SCENES.find(s=>s.day===S.day);
+  if(!scene || readHistoryDays().includes(scene.day))return next();
+  log('<b>'+scene.year+' · '+scene.title+'</b><br>'+scene.text+(scene.map?schoolMap():''),'exp');
+  if(scene.day===1){
+    if(ok('zofia'))log('조피아가 폴란드에 손을 얹는다. “여기가 내 나라야. 서쪽으로 손가락을 옮겨 봐. 지금 우리가 있는 곳까지.”','story');
+    if(ok('marie'))log('마리가 벨기에 아래에 놓인 프랑스를 짚는다. “파리에서 피란행렬을 보던 때가 생각나요.”','story');
+  }
+  function finish(){
+    try {localStorage.setItem(historyKey(),JSON.stringify([...new Set([...readHistoryDays(),scene.day])]));}catch(_){}
+    next();
+  }
+  if(!scene.options){
+    if(scene.why)return cont(()=>{log(scene.why,'exp');cont(finish);},'생각한 뒤 두 지역의 결말 확인');
+    return cont(finish,'기록을 덮는다');
+  }
+  log(scene.ask,'info');
+  choices(scene.options.map((label,i)=>({label,fn:()=>{
+    log((i===scene.answer?'그렇게 읽을 수 있다. ':'기록을 다시 살펴보자. ')+scene.why,'exp');
+    cont(finish,'지도와 신문을 접는다');
+  }})));
+}
+function historyNotebook(){
+  return HISTORY_SCENES.map(historyEntry).join('')+historicalSourceReadings();
+}
+function bindHistoryOrder(){
+  const box=$('historyOrder');
+  const events=['독일의 폴란드 침공','일본의 진주만 공격과 미국 참전','노르망디 상륙','독일 항복','일본 항복 발표와 한국 광복'];
+  let index=0;
+  const status=box.querySelector('[role=status]');
+  const buttons=box.querySelector('.historyButtons');
+  [2,4,1,0,3].forEach(i=>{
+    const button=document.createElement('button');
+    button.className='hbtn';button.textContent=events[i];
+    button.onclick=()=>{
+      if(i!==index){status.textContent='아직 앞에 놓을 사건이 남아 있어요. 다시 골라 보세요.';return;}
+      button.disabled=true;index++;
+      status.textContent=events.slice(0,index).join(' → ')+(index===events.length?' · 완성!':'');
+    };
+    buttons.appendChild(button);
+  });
+}
+function historyAfterword(){
+  const scene=HISTORY_SCENES[HISTORY_SCENES.length-1];
+  return '<div class="share"><b>대피소 밖 세계의 결말</b><p>'+scene.text+'</p><label>내 설명 한 문장<br><textarea id="historyReflection" rows="2" placeholder="5월에 벨기에에서는…, 한국에서는…"></textarea></label><details><summary>역사 기록과 비교하기</summary><p>'+scene.why+'</p></details><details id="historyOrder"><summary>사건을 일어난 순서대로 놓아 보기</summary><div class="historyButtons"></div><p role="status"></p></details><details><summary>전쟁의 흐름 다시 읽기</summary>'+historyNotebook()+'</details></div>';
+}
+
 function openRecord(tab='journal'){
   if(!S) return;
   const box=$('recBody');
-  const T=[['mates','👥 동료'],['tac','★ 전술'],['ach','🏅 업적'],['journal','📖 일지'],['items',`🗂️ 사료 ${S.items.size}/${Object.keys(ITEMS).length}`]];
+  const T=[['history','🗺️ 역사 일지'],['mates','👥 동료'],['tac','★ 전술'],['ach','🏅 업적'],['journal','📖 일지'],['items',`🗂️ 사료 ${S.items.size}/${Object.keys(ITEMS).length}`]];
   const tabs=`<div class="tabs">${T.map(([k,n])=>`<button class="${tab===k?'on':''}" data-t="${k}">${n}</button>`).join('')}</div>`;
   let body='';
   if(tab==='journal') body = S.journal.length ? S.journal.slice().reverse().map(j=>`<div class="jl"><b>${j.d}</b> ${esc(j.t)}</div>`).join('') : '<p class="sys">아직 기록이 없다. 첫 밤을 넘기면 일지가 쌓인다.</p>';
+  if(tab==='history') body=historyNotebook();
   if(tab==='items') body = '<p class="sys">📌 <b>실제 자료 유형을 재구성</b>: 그 시대에 실제로 있었던 종류의 자료를 바탕으로 다시 쓴 것 · <b>게임 속 창작 자료</b>: 가상 인물(에밀·잭·마리·레온 등)의 이야기를 위해 만든 것</p><div class="grid">'+Object.entries(ITEMS).map(([k,it])=>S.items.has(k)?`<div class="it got"><b>${it.n}</b> ${kindTag(it)}${it.quote?`<br><i style="color:#d9c9a3">「${it.quote}」</i>`:''}<br><span class="sys">${it.d}</span>${it.qz?((S.itemQz||[]).includes(k)?'<br><span class="sys">🔎 확인 질문 완료</span>':`<br><button class="ghost iqz" data-k="${k}" style="margin-top:6px">🔎 자료 확인 질문 (맞히면 지식 +2)</button>`):''}</div>`:`<div class="it"><b>???</b><br><span class="sys">${it.src==='story'?'동료의 이야기 속에서':it.src==='expedition'?'원정에서':it.src==='event'?'돌발 사건에서':'탐색 중에 발견할 수 있다'}</span></div>`).join('')+'</div>';
   if(tab==='mates') body = '<p class="sys">이번 판에 함께하는 네 사람. 신뢰가 쌓이면 능력이 더 강해진다.</p>'+S.squad.map(m=>{ const b=S.bond[m.id]||0; const st=!m.alive?(m.left?'떠남':'✝ 사망'):m.hurt?'🩹 부상':m.away?'🚶 외출 중':'함께 있음'; return `<div class="jl mcard ${!m.alive?'dead':''}"><b>${m.name}</b> <span class="sys">${st}</span><br><span class="sys">${m.role}</span><br>⚙️ 능력: ${m.perk}<br><span class="sys">💛 신뢰 ${'●'.repeat(Math.max(0,b))}${'○'.repeat(Math.max(0,4-Math.max(0,b)))} ${b>=4?'(신뢰 효과 발휘 중: ':'(4가 되면 '}${BOND_PERK[m.id]}) · 이야기 ${S.beatsSeen[m.id]||0}/${arcTotal(m.id)}</span></div>`; }).join('');
   if(tab==='tac') body = `<p><b>📜 배움 단계 Lv${knLv()}</b> <span class="sys">(누적 지식 ${S.knTotal||0}${knLv()<KNOW.length?` · 다음 단계까지 ${KNOW[knLv()].at-(S.knTotal||0)}`:''})</span></p>`+KNOW.map((k,i)=>`<div class="jl">${(S.knTotal||0)>=k.at?'📜':'🔒'} <b>Lv${i+1} ${k.n}</b> <span class="sys">누적 ${k.at} · ${k.d}</span></div>`).join('')+'<hr><p class="sys">요원 수첩 문제를 맞히면 역사에서 배운 전술이 해금된다.</p>'+Object.entries(TACTICS).map(([k,t])=>`<div class="jl">${S.tactics.has(k)?'★':'🔒'} <b>${t.name}</b> <span class="sys">${t.desc}</span></div>`).join('');
@@ -2669,8 +2775,8 @@ function morning(){
       change(ev.fx||{});
       note('라디오: '+ev.m.split('. ')[0].replace(/^어제\([^)]*\) /,'')); if(NEWS_TOPIC[k]) boostTopic(NEWS_TOPIC[k]); });
     if(checkDeath()) return;
-    cont(withBeat,'계속');
-  } else withBeat();
+    cont(()=>historyMorning(withBeat),'계속');
+  } else historyMorning(withBeat);
 }
 /* ---- 아침 점호: 서로의 기억을 확인한다 ---- */
 function rollcall(next){
@@ -3505,9 +3611,10 @@ function gameOver(kind){
     const mine=all.find(r=>r.name.toLocaleLowerCase('ko')===rec.name.toLocaleLowerCase('ko'));
     const pos=mine?rankPlace(all,mine):'-';
     e.innerHTML=`
-      <h2>${kind==='peace'?'🕊️ 1945년 5월 8일, 전쟁이 끝났다 — 그리고 냉전이 시작되었다':kind==='quit'?`📝 ${dateStr()}, 기록을 마쳤다`:`☠ ${dateStr()}, 기록이 멈췄다`}</h2>
+      <h2>${kind==='peace'?'🕊️ 1945년 5월 8일, 유럽의 전쟁이 끝났다':kind==='quit'?`📝 ${dateStr()}, 기록을 마쳤다`:`☠ ${dateStr()}, 기록이 멈췄다`}</h2>
       <p class="gold" style="font-size:20px;font-weight:900;font-family:'Noto Serif KR',serif">칭호: ${title}</p>
       ${S.lastNews?`<p class="story">당신이 마지막으로 들은 라디오 소식: ${esc(S.lastNews)}</p>`:''}
+      ${historyAfterword()}
       <table>
         <tr><th>생존자</th><td>${esc(S.name)}</td></tr>
         <tr><th>버틴 날</th><td><b>${days}일</b> (1945.1.29 ~ ${dateShort()})</td></tr>
@@ -3539,10 +3646,11 @@ function gameOver(kind){
         <button class="primary" id="againBtn">다시 도전</button>
         <button id="homeBtn">처음 화면 · 랭킹 보기</button>
       </div>`;
+    bindHistoryOrder();
     $('rankRetryBtn').onclick=()=>autoSendRank(rec);
     $('endRankRefreshBtn').onclick=()=>refreshEndRanks(rec);
     showRankSubmitState(rec);
-    $('copyShare').onclick=()=>{ const txt=`[붉은 눈] ${S.name} — ${days}일 생존 (1945.1.29 ~ ${dateShort()}) · 역사 문제 ${S.correct}/${S.total}\n내가 내린 선택: ${shareChoices().join(' / ')||'-'}\n이 선택의 역사적 근거: `; try{ navigator.clipboard.writeText(txt).then(()=>$('copyMsg').textContent='복사했어요. 이어서 근거를 써 보세요.',()=>$('copyMsg').textContent='복사가 막혔어요. 위 내용을 직접 옮겨 적어 주세요.'); }catch(err){ $('copyMsg').textContent='복사가 막혔어요. 위 내용을 직접 옮겨 적어 주세요.'; } };
+    $('copyShare').onclick=()=>{ const txt=`[붉은 눈] ${S.name} — ${days}일 생존 (1945.1.29 ~ ${dateShort()}) · 역사 문제 ${S.correct}/${S.total}\n5월의 벨기에와 한국: ${$('historyReflection').value.trim()||'미작성'}\n내가 내린 선택: ${shareChoices().join(' / ')||'-'}\n이 선택의 역사적 근거: `; try{ navigator.clipboard.writeText(txt).then(()=>$('copyMsg').textContent='복사했어요. 이어서 근거를 써 보세요.',()=>$('copyMsg').textContent='복사가 막혔어요. 위 내용을 직접 옮겨 적어 주세요.'); }catch(err){ $('copyMsg').textContent='복사가 막혔어요. 위 내용을 직접 옮겨 적어 주세요.'; } };
     $('againBtn').onclick=()=>{ $('nameInput').value=S.name; startGame(); };
     $('homeBtn').onclick=()=>{ e.classList.add('hidden'); $('startScreen').classList.remove('hidden'); renderAchBox(); $('dateLabel').textContent=''; $('dayLabel').textContent=''; renderRanks(); };
   },1600);
