@@ -2257,13 +2257,13 @@ function frame(ctx,x,y,w,h,fill){ // 도트 액자
 const DF={W:320,H:180,WALLX:112,DOORX:44,SPAWNX:328,ROWS:[150,158,166]};
 const DFK={melee:4.8,k:1.70,n:2.1,w:4.3,g:2.5,hpx:6,zs:.67,boss:3,bossLeak:6,spd:1};
 const DF_SLOTS={
-  tower:{x:33,y:47,range:330,n:'종탑',tip:'사거리 가장 김 · 단발 위력 증가, 사격 속도는 느림'},
-  win1: {x:4, y:91,range:220,n:'왼쪽 창가',tip:'사격 속도 빠름 · 중거리 담당'},
-  win2: {x:46,y:91,range:220,n:'오른쪽 창가',tip:'폭발 범위 증가 · 중거리 지원'},
-  front1:{x:70,y:113,range:160,front:true,n:'바리케이드',tip:'사거리 짧음 · 근접 저지와 가까운 적 공격 유리'},
-  front2:{x:89,y:113,range:160,front:true,n:'바리케이드',tip:'사거리 짧음 · 근접 저지와 가까운 적 공격 유리'},
-  door1:{x:20,y:122,range:120,n:'정문',hidden:true},
-  door2:{x:38,y:122,range:120,n:'정문',hidden:true},
+  tower:{x:74,y:21,h:20,range:330,n:'종탑',tip:'사거리 가장 김 · 단발 위력 증가, 사격 속도는 느림'},
+  win1: {x:20,y:64,h:18,range:220,n:'왼쪽 창가',tip:'사격 속도 빠름 · 중거리 담당'},
+  win2: {x:44,y:67,h:18,range:220,n:'오른쪽 창가',tip:'폭발 범위 증가 · 중거리 지원'},
+  front1:{x:85,y:118,h:23,range:160,front:true,n:'바리케이드',tip:'사거리 짧음 · 근접 저지와 가까운 적 공격 유리'},
+  front2:{x:99,y:118,h:24,range:160,front:true,n:'바리케이드',tip:'사거리 짧음 · 근접 저지와 가까운 적 공격 유리'},
+  door1:{x:35,y:123,h:22,range:120,n:'정문',hidden:true},
+  door2:{x:48,y:123,h:22,range:120,n:'정문',hidden:true},
 };
 const DF_ORDER=['tower','win1','win2','front1','front2'];
 const DF_UNITS={
@@ -2383,7 +2383,7 @@ function dfStep(st,dt){
     if(U.kind==='gun'||U.kind==='gunfix'){
       const tg=st.z.filter(inR).sort((a,b)=>a.x-b.x)[0];
       if(tg){ st.emitSound?.(({emil:'hunting',ibra:'sniper',zofia:'pistol'})[u.id]||'rifle');
-        const dmg=U.dmg*mod.dmg;tg.hp-=dmg; tg.hit=.15; u.cd=U.cd*DFK.k*supply*mod.cd; u.fl=.12; u.shotAt=st.t; st.fx.push({k:'shot',sx:shotOrigin(u.id,S2.x,S2.y).x,sy:shotOrigin(u.id,S2.x,S2.y).y,x:tg.x,y:DF.ROWS[tg.row]-8,t:.12},{k:'num',x:tg.x,y:DF.ROWS[tg.row]-20,v:'-'+Math.round(dmg*10)/10,t:.7}); }
+        const dmg=U.dmg*mod.dmg;tg.hp-=dmg; tg.hit=.15; u.cd=U.cd*DFK.k*supply*mod.cd; u.fl=.12; u.shotAt=st.t; st.fx.push({k:'shot',sx:shotOrigin(u.id,S2).x,sy:shotOrigin(u.id,S2).y,x:tg.x,y:DF.ROWS[tg.row]-8,t:.12},{k:'num',x:tg.x,y:DF.ROWS[tg.row]-20,v:'-'+Math.round(dmg*10)/10,t:.7}); }
     } else if(U.kind==='nade'){
       const tg=st.z.filter(inR).sort((a,b)=>a.x-b.x)[0];
       if(tg){ st.emitSound?.('blast'); st.z.forEach(z=>{ if(z.hp>0&&!z.boss&&Math.abs(z.x-tg.x)<=16*mod.blast){ z.hp-=U.dmg*mod.dmg; z.hit=.2; } });
@@ -2503,8 +2503,8 @@ const RS_ART=(()=>{
       if(!sceneReady||!scenery.naturalWidth)return false;
       try{
         ctx.save();ctx.imageSmoothingEnabled=true;
-        ctx.drawImage(scenery,0,0,ctx.canvas.width,ctx.canvas.height);
-        if(weather==='moon'){ctx.fillStyle='rgba(8,15,35,.18)';ctx.fillRect(0,0,ctx.canvas.width,ctx.canvas.height);}
+        ctx.drawImage(scenery,0,0,DF.W,DF.H);
+        if(weather==='moon'){ctx.fillStyle='rgba(8,15,35,.18)';ctx.fillRect(0,0,DF.W,DF.H);}
         ctx.restore();return true;
       }catch(_){return false;}
     },
@@ -2624,9 +2624,16 @@ const ROLE_FRAMES={
   leader:{idle:0,aim:14,fire:16,recover:18},rifleman:{idle:0,aim:4,fire:5,recover:6},
   scout:{idle:0,aim:4,fire:5,recover:4},engineer:{idle:0,aim:10,fire:12,recover:11}
 };
-function shotOrigin(id,x,y){
+function stationScale(id,slot){
+  const key=COMBAT_ROLES[id];
+  const frame=typeof COMBAT_FRAMES!=='undefined'&&COMBAT_FRAMES[key]?.[0];
+  const heights={leader:61,rifleman:50,scout:52,engineer:48};
+  return slot.h/(frame?frame[3]:(heights[key]||50));
+}
+function shotOrigin(id,slot){
   const tip=({me:[26,28],emil:[40,21],ibra:[38,22],zofia:[29,17]})[id]||[18,14];
-  return {x:x+8+tip[0],y:y+19-tip[1]};
+  const ratio=stationScale(id,slot)/.67;
+  return {x:slot.x+8+tip[0]*ratio,y:slot.y+19-tip[1]*ratio};
 }
 function actorCel(u,threat,retreating,t,moving){
   const role=COMBAT_ROLES[u.id], shots=ROLE_FRAMES[role];
@@ -2647,27 +2654,41 @@ function actorCel(u,threat,retreating,t,moving){
 }
 const INFECTED_ROWS={w:'shambler',h:'runner',b:'bulk',B:'boss'};
 function infectedScale(type){return type==='B'?.78:type==='b'?.69:.66;}
+const STATION_OPENINGS={
+  tower:[[77.7,36.7],[77.7,22],[78.5,19.5],[80.7,17.7],[83.5,17],[86,18.4],[87.9,21],[88,35.7]],
+  win1:[[23.1,77.6],[23.1,66.3],[24,63.5],[26.4,61.3],[29,60.8],[31.7,62],[34.7,65.7],[35,78.1]],
+  win2:[[47,79.6],[47,68.6],[48.5,65.8],[51,64.5],[53.8,64.8],[56.6,67.4],[57.1,69],[57.1,80.1]]
+};
+function stationPath(ctx,points){
+  ctx.beginPath();points.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));ctx.closePath();
+}
+function aperture(ctx,slot){
+  const points=STATION_OPENINGS[slot];
+  stationPath(ctx,points);ctx.clip();
+  if(slot==='tower')return;
+  const x=points[0][0];
+  const shade=ctx.createLinearGradient(x,0,x+12,0);
+  shade.addColorStop(0,'#312932');shade.addColorStop(.72,'#55403a');shade.addColorStop(1,'#91643d');
+  ctx.fillStyle=shade;ctx.fillRect(x,59,14,24);
+}
+// Upper contour of the existing snowy sacks and leaning timber. Keep both in front of the guards.
+const FRONT_COVER=[[0,145],[84,145],[85.3,139.8],[87,138.9],[86.9,136.5],[89,134.8],
+  [88.7,132.8],[90.7,130.7],[94.5,130],[97.2,130.5],[100,129.3],[103,128.5],[106.2,128.1],
+  [109,129.1],[107.8,120],[109,118.2],[114.2,127.7],[120,141],[320,145],[320,180],[0,180]];
 function dfDraw(ctx,st,ui){
   const G=dfAssets(); const t=st.t+(ui?.frameRemainder||0);
   const artScale=ctx.canvas.width/DF.W;
-  ctx.save();ctx.setTransform(1,0,0,1,0,0);
-  const hiBg=RS_ART.bgHigh(ctx,st.weather);
-  ctx.restore();
+  
   ctx.save();ctx.setTransform(artScale,0,0,artScale,0,0);
   if(FX.motion && st.shake>0)ctx.translate(Math.sin(t*85)*2*st.shake,Math.cos(t*63)*1.2*st.shake);
+  const hiBg=RS_ART.bgHigh(ctx,st.weather);
   if(!hiBg && !RS_ART.bg(ctx,st.weather)) ctx.drawImage(G.bgs[st.weather]||G.bg,0,0);
   if(st.weather==='moon'){ ctx.fillStyle='rgba(170,200,255,.10)'; ctx.fillRect(0,124,320,56); }
   // 덫
   st.traps.forEach(tp=>{ if(tp.uses<=0) return; ctx.fillStyle=OUT; ctx.fillRect(tp.x-6,171,13,4); ctx.fillStyle='#6b7078'; ctx.fillRect(tp.x-5,172,11,2); ctx.fillStyle='#a8aeb6'; for(let k=0;k<4;k++) ctx.fillRect(tp.x-5+k*3,168,1,4);
     if(ui&&ui.sel==='trap'){ ctx.fillStyle='rgba(255,216,74,.5)'; ctx.fillRect(tp.x-7,166,15,10); } });
-  // 바리케이드
-  const f=st.max>0?st.wall/st.max:0, bags=Math.ceil(f*20);
-  for(let k=0;k<bags;k++){ const row=Math.floor(k/5), i=k%5; pdraw(ctx,G.bag,64+i*9+(row%2)*4,136-row*6); }
-  if(st.broke){ ctx.fillStyle='#3a2a1a'; ctx.fillRect(70,138,36,4); }
-  ctx.fillStyle=OUT; ctx.fillRect(66,106,44,4); ctx.fillStyle=f>.5?'#6cbf5a':f>.2?'#e0b030':'#d04030'; ctx.fillRect(67,107,Math.round(42*f),2);
-  // 동료(자리)
-  if(ui&&ui.phase==='place') DF_ORDER.forEach(s=>{ const S2=DF_SLOTS[s]; const blink=Math.floor(performanceNow()/300)%2;
-    ctx.strokeStyle= ui.sel&&ui.sel!=='trap'? (blink?'#ffd84a':'#fff3b0') : 'rgba(255,255,255,.35)'; ctx.lineWidth=1; ctx.strokeRect(S2.x-1.5,S2.y-1.5,19,19); });
+  // Positions share the reference painting's 320 × 180 coordinate space.
+  const f=st.max>0?st.wall/st.max:0;
   const moving=FX.motion;
   const threat=st.z.reduce((nearest,z)=>z.hp>0&&(!nearest||z.x<nearest.x)?z:nearest,null);
   st.units.forEach((u,i)=>{
@@ -2692,18 +2713,33 @@ function dfDraw(ctx,st,ui){
     const role=COMBAT_ROLES[u.id];
     const cel=actorCel(u,threat,retreating,t,moving);
     const bodyX=ux+8-recoil*1.1,feet=uy+19;
-    const illustrated=paintCombat(ctx,role,cel,bodyX,feet,.67);
+    ctx.save();
+    if(hiBg&&!retreating&&STATION_OPENINGS[u.s])aperture(ctx,u.s);
+    const illustrated=paintCombat(ctx,role,cel,bodyX,feet,stationScale(u.id,S2));
     if(!illustrated&&!RS_ART.actor(ctx,u.id,ux,uy,aim,recoil,stride,breath))pdraw(ctx,G.u[u.id],Math.round(ux-recoil),Math.round(uy+breath));
+    ctx.restore();
     if(u.fl>0 && !retreating && (kind==='gun'||kind==='gunfix')){
-      const tip=shotOrigin(u.id,ux,uy);
+      const tip=shotOrigin(u.id,S2);
       if(!paintCombat(ctx,'muzzle',Math.min(3,Math.floor((.12-u.fl)*28)),tip.x-recoil,tip.y,.28,false,true)){
       ctx.fillStyle='#ffe066';ctx.fillRect(ux+16,uy+7,3,3);
       ctx.fillStyle='#fff';ctx.fillRect(ux+17,uy+8,1,1);
       ctx.fillStyle='#ff9a2e';ctx.fillRect(ux+19,uy+8,2,1);}
     }
-    if(ui&&ui.sel===u.id){ ctx.strokeStyle='#ffd84a'; ctx.strokeRect(S2.x-1.5,S2.y-1.5,19,19); }
-    if(u.id==='yusuf' && ui&&ui.phase==='run' && Math.floor(t*3)%2){ ctx.fillStyle='#e8c27a'; ctx.fillRect(S2.x+14,S2.y+4,2,2); }
-    if(u.id==='leon' && Math.floor(t*2)%2 && ui&&ui.phase==='run'){ ctx.fillStyle='#ffe066'; ctx.fillRect(S2.x+14,S2.y-2,1,2); ctx.fillRect(S2.x+17,S2.y,2,1); } });
+  });
+  if(hiBg){
+    ctx.save();stationPath(ctx,FRONT_COVER);ctx.clip();RS_ART.bgHigh(ctx,st.weather);
+    if(st.weather==='moon'){ctx.fillStyle='rgba(170,200,255,.10)';ctx.fillRect(0,124,320,56);}
+    ctx.restore();
+  }else{
+    for(let k=0;k<Math.ceil(f*16);k++)pdraw(ctx,G.bag,83+k%4*8,137-Math.floor(k/4)*3);
+  }
+  if(ui?.phase==='place'&&ui.sel&&ui.sel!=='trap')for(const key of DF_ORDER){
+    const slot=DF_SLOTS[key];
+    ctx.strokeStyle=st.units.some(u=>u.s===key&&u.id===ui.sel)?'#ffd84a':'rgba(255,245,210,.65)';
+    ctx.lineWidth=.6;
+    if(STATION_OPENINGS[key]){stationPath(ctx,STATION_OPENINGS[key]);ctx.stroke();}
+    else ctx.strokeRect(slot.x+1,slot.y-3,14,15);
+  }
   // 감염자 (뒷줄부터)
   [...st.z].sort((a,b)=>a.row-b.row).forEach(z=>{
     const set = z.boss?G.B : z.type==='b'?G.b : z.type==='h'?G.h : G.z;
@@ -2898,7 +2934,9 @@ function dfOpen(P,done){
     const ci = (p.y>=154&&p.y<=178) ? Math.floor((p.x-4)/24) : -1;
     if(ci>=0 && ci<ui.cards.length && p.x<4+ui.cards.length*24){ ui.sel = ui.sel===ui.cards[ci]?null:ui.cards[ci]; }
     else {
-      const slot=DF_ORDER.find(s=>{ const S2=DF_SLOTS[s]; return p.x>=S2.x-4&&p.x<=S2.x+20&&p.y>=S2.y-4&&p.y<=S2.y+22; });
+      const slot=DF_ORDER.filter(s=>{
+        const q=DF_SLOTS[s];return Math.abs(p.x-q.x-8)<=11&&Math.abs(p.y-q.y-8)<=14;
+      }).sort((a,b)=>Math.abs(p.x-DF_SLOTS[a].x-8)-Math.abs(p.x-DF_SLOTS[b].x-8))[0];
       if(slot){ const here=Object.keys(place.units).find(k=>place.units[k]===slot);
         if(ui.sel && ui.sel!=='trap'){ const from=place.units[ui.sel]; if(here) place.units[here]=from; place.units[ui.sel]=slot; }
         else if(here) ui.sel=here; }
