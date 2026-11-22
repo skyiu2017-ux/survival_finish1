@@ -222,6 +222,7 @@ th{color:var(--dim);font-weight:400}
   <section id="endScreen" class="screen hidden"></section>
 </div>
 
+<script src="assets/combat-frames.js"></script>
 <script>
 /* 학급 공용 랭킹(선택): 구글 앱스 스크립트 웹 앱 주소를 넣으면 공용 랭킹을 씁니다. 비워 두면 이 기기에만 기록됩니다. */
 const RANK_URL = 'https://script.google.com/macros/s/AKfycbyBQkt0AbRCt66KvT9M352wf6oHdRhelqiK0BUXNFAUJFoMOg1wgwXlMK4ZGwbPp_Bj/exec'; // 공용 랭킹을 쓰려면 선생님이 배포한 Google Apps Script /exec URL 붙여넣기
@@ -1403,11 +1404,42 @@ function noiseBurst(delay,length,high,low,level){
   source.onended=()=>{source.disconnect();band.disconnect();gain.disconnect();FX.voices.sound.delete(source);};
   source.start(start,acousticRandom()*(combatNoiseBuffer.duration-length),length);
 }
+// Start, length and mix level for the original offline-rendered effects in the shared WAV.
+const FIELD_SAMPLES={
+  rifle:[0,.39,.45], hunting:[.41,.53,.46], sniper:[.96,.72,.44], pistol:[1.70,.23,.42],
+  throw:[1.95,.28,.24], blast:[2.25,.92,.50], glass:[3.19,.46,.36],
+  embers:[3.67,.48,.15], embers2:[4.17,.48,.15]
+};
+let fieldBuffer=null,fieldLoading=null;
+function loadFieldSamples(){
+  if(fieldBuffer||fieldLoading||!FX.ctx)return;
+  fieldLoading=fetch('assets/sfx/field-effects.wav').then(response=>{
+    if(!response.ok)throw Error('Field audio unavailable');
+    return response.arrayBuffer();
+  }).then(bytes=>FX.ctx.decodeAudioData(bytes)).then(buffer=>{
+    fieldBuffer=buffer;
+  }).catch(()=>{}).finally(()=>{fieldLoading=null;});
+}
+function fieldSample(kind){
+  const key=kind==='embers'&&acousticRandom()<.5?'embers2':kind;
+  const [offset,duration,level]=FIELD_SAMPLES[key];
+  const ac=FX.ctx,source=ac.createBufferSource(),gain=ac.createGain();
+  source.buffer=fieldBuffer;
+  source.playbackRate.value=.97+acousticRandom()*.06;
+  gain.gain.value=level*.5; // Leave headroom for overlapping shots, impacts and music.
+  connectVoice(source,gain,'sound');
+  source.start(ac.currentTime,offset,duration);
+}
 const nextBattleCue=new Map();
 function battleSound(kind){
   if(!audioAllowed('sound'))return;
   const cue=BATTLE_CUES[kind],now=FX.ctx.currentTime;
   if(!cue||now<(nextBattleCue.get(cue.group)||0))return;
+  if(fieldBuffer){
+    nextBattleCue.set(cue.group,now+cue.gap+(kind==='embers'?acousticRandom()*.19:0));
+    fieldSample(kind);
+    return;
+  }
   if(kind==='embers'){
     nextBattleCue.set(cue.group,now+cue.gap+acousticRandom()*.22);
     const count=2+Math.floor(acousticRandom()*3);
@@ -1450,6 +1482,7 @@ async function toggleAudio(channel){
       if(!FX.ctx)FX.ctx=new (window.AudioContext||window.webkitAudioContext)();
       const ready=FX.ctx.state==='running'?null:FX.ctx.resume();
       if(channel==='music')refreshMusic();
+      if(channel==='sound')loadFieldSamples();
       if(ready)await ready;
     }catch(_){FX[channel]=false;buttons.forEach(b=>b.title='이 브라우저에서 소리를 재생할 수 없습니다.');}
   }
@@ -2350,15 +2383,15 @@ function dfStep(st,dt){
     if(U.kind==='gun'||U.kind==='gunfix'){
       const tg=st.z.filter(inR).sort((a,b)=>a.x-b.x)[0];
       if(tg){ st.emitSound?.(({emil:'hunting',ibra:'sniper',zofia:'pistol'})[u.id]||'rifle');
-        const dmg=U.dmg*mod.dmg;tg.hp-=dmg; tg.hit=.15; u.cd=U.cd*DFK.k*supply*mod.cd; u.fl=.12; st.fx.push({k:'shot',sx:S2.x+16,sy:S2.y+8,x:tg.x,y:DF.ROWS[tg.row]-8,t:.12},{k:'num',x:tg.x,y:DF.ROWS[tg.row]-20,v:'-'+Math.round(dmg*10)/10,t:.7}); }
+        const dmg=U.dmg*mod.dmg;tg.hp-=dmg; tg.hit=.15; u.cd=U.cd*DFK.k*supply*mod.cd; u.fl=.12; u.shotAt=st.t; st.fx.push({k:'shot',sx:shotOrigin(u.id,S2.x,S2.y).x,sy:shotOrigin(u.id,S2.x,S2.y).y,x:tg.x,y:DF.ROWS[tg.row]-8,t:.12},{k:'num',x:tg.x,y:DF.ROWS[tg.row]-20,v:'-'+Math.round(dmg*10)/10,t:.7}); }
     } else if(U.kind==='nade'){
       const tg=st.z.filter(inR).sort((a,b)=>a.x-b.x)[0];
       if(tg){ st.emitSound?.('blast'); st.z.forEach(z=>{ if(z.hp>0&&!z.boss&&Math.abs(z.x-tg.x)<=16*mod.blast){ z.hp-=U.dmg*mod.dmg; z.hit=.2; } });
-        u.cd=U.cd*DFK.k*mod.cd; u.fl=.2; st.fx.push({k:'boom',x:tg.x,y:DF.ROWS[tg.row]-4,t:.6,seed:Math.floor(st.t*100)},{k:'num',x:tg.x,y:DF.ROWS[tg.row]-24,v:'-'+U.dmg,t:.7}); }
+        u.cd=U.cd*DFK.k*mod.cd; u.fl=.2; u.shotAt=st.t; st.fx.push({k:'boom',x:tg.x,y:DF.ROWS[tg.row]-4,t:.6,seed:Math.floor(st.t*100)},{k:'num',x:tg.x,y:DF.ROWS[tg.row]-24,v:'-'+U.dmg,t:.7}); }
     } else if(U.kind==='blast'){
       const tg=st.z.filter(inR).sort((a,b)=>a.x-b.x)[0];
       if(tg){ st.emitSound?.('blast'); st.z.forEach(z=>{ if(z.hp>0&&!z.boss&&Math.abs(z.x-tg.x)<=20*mod.blast){ z.hp-=U.dmg*.82*mod.dmg; z.hit=.2; } });
-        u.cd=U.cd*DFK.k*mod.cd; u.fl=.2; st.shake=.3; st.fx.push({k:'boom',x:tg.x,y:DF.ROWS[tg.row]-4,t:.6,seed:Math.floor(st.t*100)+3},{k:'boom',x:tg.x+10,y:DF.ROWS[tg.row]-2,t:.6,seed:Math.floor(st.t*100)+9},{k:'num',x:tg.x,y:DF.ROWS[tg.row]-24,v:'-'+U.dmg,t:.7}); }
+        u.cd=U.cd*DFK.k*mod.cd; u.fl=.2; u.shotAt=st.t; st.shake=.3; st.fx.push({k:'boom',x:tg.x,y:DF.ROWS[tg.row]-4,t:.6,seed:Math.floor(st.t*100)+3},{k:'boom',x:tg.x+10,y:DF.ROWS[tg.row]-2,t:.6,seed:Math.floor(st.t*100)+9},{k:'num',x:tg.x,y:DF.ROWS[tg.row]-24,v:'-'+U.dmg,t:.7}); }
 
     }
   }
@@ -2369,7 +2402,7 @@ function dfStep(st,dt){
   if(st.projectiles.length)st.projectiles=st.projectiles.filter(shot=>shot.age<shot.duration);
   if(st.fires&&st.fires.length){ st.emitSound?.('embers'); st.fires.forEach(f=>{ f.t-=dt; st.z.forEach(z=>{ if(z.hp>0&&!z.boss&&Math.abs(z.x-f.x)<=16){ z.hp-=2.2*dt; if(Math.random()<.1) z.hit=.1; } }); }); st.fires=st.fires.filter(f=>f.t>0); }
   const dead=st.z.filter(z=>z.hp<=0);
-  dead.forEach(z=>{ if(z.boss&&!z.leaked){ st.bossOut='dead'; st.shake=1; } if(!z.leaked){ st.kills++; st.fx.push({k:'die',x:z.x,y:DF.ROWS[z.row],t:.5,big:z.boss||z.type==='b'}); } });
+  dead.forEach(z=>{ if(z.boss&&!z.leaked){ st.bossOut='dead'; st.shake=1; } if(!z.leaked){ st.kills++; st.fx.push({k:'die',enemyType:z.type,x:z.x,y:DF.ROWS[z.row],t:.5,big:z.boss||z.type==='b'}); } });
   st.z=st.z.filter(z=>z.hp>0);
   st.fx.forEach(f=>f.t-=dt); st.fx=st.fx.filter(f=>f.t>0);
   if(st.si>=pl.list.length && !st.z.length && !st.projectiles.length) st.done=true;
@@ -2391,6 +2424,8 @@ function dfThrow(st,kind,x){
   const slot=DF_SLOTS[st.units.find(u=>u.id==='me')?.s||'front1'];
   const sx=slot.x+13,sy=slot.y+4;
   const duration=.28+Math.abs(x-sx)*.0012;
+  const thrower=st.units.find(u=>u.id==='me');
+  if(thrower)thrower.thrownAt=st.t;
   st.emitSound?.('throw');
   st.projectiles.push({kind,sx,sy,x,y:157,age:0,duration});
   return true;
@@ -2570,6 +2605,48 @@ function dfPaintBg(c,mode){
   c.fillStyle='#3a2a20'; c.fillRect(2,104,20,2); c.fillRect(44,104,20,2); c.fillRect(66,127,40,3);
 }
 /* ---------- 그림: 매 프레임 ---------- */
+// The atlas uses tight crops. Use each row's standing height as the scale
+// so a crouching or fallen frame stays low instead of stretching upright.
+const combatSheet=new Image();
+combatSheet.src='assets/combat-frames.png';
+function paintCombat(ctx,key,index,x,y,scale,flip=false,centered=false){
+  if(!combatSheet.naturalWidth||typeof COMBAT_FRAMES==='undefined')return false;
+  const frames=COMBAT_FRAMES[key];
+  if(!frames?.length)return false;
+  const [sx,sy,w,h]=frames[Math.max(0,Math.min(frames.length-1,index))];
+  ctx.save();ctx.translate(x,y);ctx.scale(flip?-scale:scale,scale);
+  ctx.imageSmoothingEnabled=true;
+  ctx.drawImage(combatSheet,sx,sy,w,h,-w/2,centered?-h/2:-h,w,h);
+  ctx.restore();return true;
+}
+const COMBAT_ROLES={me:'leader',emil:'rifleman',ibra:'scout',jack:'demolition',marie:'medic',leon:'lookout',zofia:'engineer',enzo:'demolition',yusuf:'civilian'};
+const ROLE_FRAMES={
+  leader:{idle:0,aim:14,fire:16,recover:18},rifleman:{idle:0,aim:4,fire:5,recover:6},
+  scout:{idle:0,aim:4,fire:5,recover:4},engineer:{idle:0,aim:10,fire:12,recover:11}
+};
+function shotOrigin(id,x,y){
+  const tip=({me:[26,28],emil:[40,21],ibra:[38,22],zofia:[29,17]})[id]||[18,14];
+  return {x:x+8+tip[0],y:y+19-tip[1]};
+}
+function actorCel(u,threat,retreating,t,moving){
+  const role=COMBAT_ROLES[u.id], shots=ROLE_FRAMES[role];
+  if(retreating)return Math.floor(t*10)%4;
+  if(t-(u.thrownAt??-10)<.35)return t-u.thrownAt<.16?19:20;
+  const age=t-(u.shotAt??-10);
+  if(u.repair)return 6+(moving?Math.floor(t*5)%3:0);
+  if(shots){
+    if(age<.14)return shots.fire;
+    if(age<.34)return shots.recover;
+    return threat&&u.cd<.65?shots.aim:shots.idle;
+  }
+  if(role==='demolition')return age<.4?7:threat&&u.cd<.7?6:0;
+  if(!moving||!threat)return 0;
+  if(role==='medic')return [5,6,7,6][Math.floor(t*2)%4];
+  if(role==='lookout')return [4,6,6,4][Math.floor(t*2)%4];
+  return Math.floor(t*3)%4;
+}
+const INFECTED_ROWS={w:'shambler',h:'runner',b:'bulk',B:'boss'};
+function infectedScale(type){return type==='B'?.78:type==='b'?.69:.66;}
 function dfDraw(ctx,st,ui){
   const G=dfAssets(); const t=st.t+(ui?.frameRemainder||0);
   const artScale=ctx.canvas.width/DF.W;
@@ -2612,11 +2689,17 @@ function dfDraw(ctx,st,ui){
       ?Math.min(.22,Math.max(-.12,Math.atan2(DF.ROWS[threat.row]-10-uy,Math.max(16,threat.x-ux))*.32)):0;
     const recoil=moving&&!retreating?Math.max(0,Math.min(1,u.fl/(kind==='gun'||kind==='gunfix'?.12:.2))):0;
     const breath=moving&&ui&&ui.phase==='run'?(1+Math.sin(t*2.1+i*1.7))*.18:0;
-    if(!RS_ART.actor(ctx,u.id,ux,uy,aim,recoil,stride,breath))pdraw(ctx,G.u[u.id],Math.round(ux-recoil),Math.round(uy+breath));
+    const role=COMBAT_ROLES[u.id];
+    const cel=actorCel(u,threat,retreating,t,moving);
+    const bodyX=ux+8-recoil*1.1,feet=uy+19;
+    const illustrated=paintCombat(ctx,role,cel,bodyX,feet,.67);
+    if(!illustrated&&!RS_ART.actor(ctx,u.id,ux,uy,aim,recoil,stride,breath))pdraw(ctx,G.u[u.id],Math.round(ux-recoil),Math.round(uy+breath));
     if(u.fl>0 && !retreating && (kind==='gun'||kind==='gunfix')){
+      const tip=shotOrigin(u.id,ux,uy);
+      if(!paintCombat(ctx,'muzzle',Math.min(3,Math.floor((.12-u.fl)*28)),tip.x-recoil,tip.y,.28,false,true)){
       ctx.fillStyle='#ffe066';ctx.fillRect(ux+16,uy+7,3,3);
       ctx.fillStyle='#fff';ctx.fillRect(ux+17,uy+8,1,1);
-      ctx.fillStyle='#ff9a2e';ctx.fillRect(ux+19,uy+8,2,1);
+      ctx.fillStyle='#ff9a2e';ctx.fillRect(ux+19,uy+8,2,1);}
     }
     if(ui&&ui.sel===u.id){ ctx.strokeStyle='#ffd84a'; ctx.strokeRect(S2.x-1.5,S2.y-1.5,19,19); }
     if(u.id==='yusuf' && ui&&ui.phase==='run' && Math.floor(t*3)%2){ ctx.fillStyle='#e8c27a'; ctx.fillRect(S2.x+14,S2.y+4,2,2); }
@@ -2640,11 +2723,15 @@ function dfDraw(ctx,st,ui){
     const frame=z.boss&&hit>.3?1:!lively?0:striking?Math.round(strike*(frameCount-1)):
       Math.floor(((step%(Math.PI*2)+Math.PI*2)%(Math.PI*2))/(Math.PI*2)*frameCount);
     const fr=set[frame%set.length];
-    const atlas=RS_ART.enemy(ctx,z,drawX,frame,bend,stride,crouch);
+    const row=INFECTED_ROWS[z.type],cycle=Math.floor((z.ph+Math.max(0,DF.SPAWNX+14-drawX))*.43);
+    const contact=z.type==='B'?3:z.type==='b'?6:z.type==='h'?5:7;
+    const cel=!moving?0:z.hit>.02?contact+1:striking?contact+Math.floor(t*6+z.ph)%2:cycle%(z.boss?2:z.type==='w'?7:5);
+    const illustrated=paintCombat(ctx,row,cel,drawX,DF.ROWS[z.row],infectedScale(z.type),true);
+    const atlas=illustrated||RS_ART.enemy(ctx,z,drawX,frame,bend,stride,crouch);
     const width=atlas?(z.boss?84:heavy?36:26):fr.w, height=atlas?(z.boss?78:heavy?35:29):fr.h;
     const x=Math.round(drawX-width/2), y=DF.ROWS[z.row]-height;
     if(!atlas)pdraw(ctx,fr,Math.round(x-strike*2+hit),Math.round(y+crouch),z.hit>0?'#ffffff':null);
-    if(z.boss){ ctx.fillStyle='rgba(192,74,224,.16)'; ctx.fillRect(x-4,y-4,width+8,height+8);
+    if(z.boss){
       for(let k=0;k<z.max;k++){ ctx.fillStyle=OUT; ctx.fillRect(x+k*16,y-8,14,5); ctx.fillStyle=k<z.hp?'#c04ae0':'#3a2f44'; ctx.fillRect(x+1+k*16,y-7,12,3); } }
     else if(!z.boss){ ctx.fillStyle=OUT; ctx.fillRect(x,y-4,width,3); ctx.fillStyle='#e04030'; ctx.fillRect(x+1,y-3,Math.max(0,Math.round((width-2)*z.hp/z.max)),1); }
     if(z.stun>0){ ctx.fillStyle='#ffe066'; ctx.fillRect(x+3,y-3,2,2); ctx.fillRect(x+width-5,y-5,2,2); } });
@@ -2654,9 +2741,10 @@ function dfDraw(ctx,st,ui){
     const x=shot.sx+(shot.x-shot.sx)*phase;
     const y=shot.sy+(shot.y-shot.sy)*phase-Math.sin(phase*Math.PI)*26;
     ctx.save();ctx.translate(x,y);ctx.rotate(phase*5);
+    if(!paintCombat(ctx,shot.kind==='nade'?'grenade':'bottle',shot.kind==='fire'?1:0,0,0,.40,false,true)){
     ctx.fillStyle='#252731';ctx.fillRect(-1.8,-2.7,3.6,4.8);
     ctx.fillStyle=shot.kind==='fire'?'#cb9863':'#93a385';ctx.fillRect(-1.3,-2,2.6,3.5);
-    ctx.fillStyle=shot.kind==='fire'?'#ffdb86':'#dac8a2';ctx.fillRect(-.65,-4,1.3,2);
+    ctx.fillStyle=shot.kind==='fire'?'#ffdb86':'#dac8a2';ctx.fillRect(-.65,-4,1.3,2);}
     ctx.restore();
   }
   st.fx.forEach(e=>{
@@ -2665,6 +2753,8 @@ function dfDraw(ctx,st,ui){
       ctx.strokeStyle='rgba(255,237,178,.9)';ctx.lineWidth=.75;ctx.beginPath();
       ctx.moveTo(e.sx+(e.x-e.sx)*tail,e.sy+(e.y-e.sy)*tail);
       ctx.lineTo(e.sx+(e.x-e.sx)*head,e.sy+(e.y-e.sy)*head);ctx.stroke();
+      paintCombat(ctx,'bullet',2,e.sx+(e.x-e.sx)*head,e.sy+(e.y-e.sy)*head,.35,false,true);
+      if(phase>.45)paintCombat(ctx,'hit',1,e.x,e.y,.43,false,true);
     }
     else if(e.k==='shock'||e.k==='glass'){
       const blast=e.k==='shock', phase=1-e.t/(blast?.48:.42);
@@ -2680,10 +2770,16 @@ function dfDraw(ctx,st,ui){
       }
       ctx.restore();
     }
-    else if(e.k==='boom'){ const g=1-e.t/.6; let s=e.seed; const R=()=>{ s=(s*16807+7)%2147483647; return s/2147483647; };
+    else if(e.k==='boom'){ const g=1-e.t/.6;
+      if(paintCombat(ctx,'boom',Math.floor(g*13),e.x,e.y+4,.98)){
+        if(g>.46){ctx.save();ctx.globalAlpha=.60*(1-g);paintCombat(ctx,'smoke',Math.floor(g*3),e.x,e.y-10*g,.69);ctx.restore();}return;
+      } let s=e.seed; const R=()=>{ s=(s*16807+7)%2147483647; return s/2147483647; };
       for(let i=0;i<46;i++){ const a=R()*6.28, d=R()*14*(.4+g); ctx.fillStyle= d<4?'#fff1a0': d<8?'#ff9a2e':'#d24a2a'; ctx.fillRect(Math.round(e.x+Math.cos(a)*d*1.3),Math.round(e.y+Math.sin(a)*d*.7-g*4),1,1); }
       for(let i=0;i<10;i++){ ctx.fillStyle=i%2?'#6b6470':'#8a8390'; ctx.fillRect(e.x-6+i,e.y-8-g*10-(i%3),2,2); } }
-    else if(e.k==='die'){ ctx.fillStyle='#6a1d1d'; ctx.fillRect(Math.round(e.x)-(e.big?8:4),e.y,e.big?16:8,2); ctx.fillStyle='#8a2a2a'; ctx.fillRect(Math.round(e.x)-2,e.y-1,4,1); }
+    else if(e.k==='die'){
+      const row=INFECTED_ROWS[e.enemyType];
+      if(typeof COMBAT_FRAMES!=='undefined'&&COMBAT_FRAMES[row]&&paintCombat(ctx,row,COMBAT_FRAMES[row].length-(e.t>.28?2:1),e.x,e.y,infectedScale(e.enemyType),true))return;
+      ctx.fillStyle='#6a1d1d'; ctx.fillRect(Math.round(e.x)-(e.big?8:4),e.y,e.big?16:8,2); ctx.fillStyle='#8a2a2a'; ctx.fillRect(Math.round(e.x)-2,e.y-1,4,1); }
     else if(e.k==='num'){ num(ctx,e.v,Math.round(e.x)-3,Math.round(e.y-(0.7-e.t)*14),'#ffe066'); }
     else if(e.k==='trap'){ ctx.fillStyle='#ffffff'; ctx.fillRect(e.x-6,e.y+4,13,1); num(ctx,'!',e.x-1,e.y-26,'#ffffff'); }
     else if(e.k==='shout'){ ctx.font='bold 7px sans-serif'; ctx.fillStyle=OUT; ctx.fillText(e.v,e.x-1,e.y+1); ctx.fillStyle='#ffe066'; ctx.fillText(e.v,e.x-2,e.y); }
@@ -2699,6 +2795,12 @@ function dfDraw(ctx,st,ui){
     const glow=ctx.createRadialGradient(fire.x,157,1,fire.x,157,21);
     glow.addColorStop(0,'rgba(255,163,69,.34)');glow.addColorStop(1,'rgba(255,126,36,0)');
     ctx.fillStyle=glow;ctx.fillRect(fire.x-21,136,42,42);
+    const flameFrame=Math.floor(t*9)%4;
+    if(paintCombat(ctx,'fire',flameFrame,fire.x,162,.63*spread)){
+      paintCombat(ctx,'fire',(flameFrame+2)%4,fire.x-10*spread,161,.38*spread);
+      paintCombat(ctx,'fire',(flameFrame+1)%4,fire.x+11*spread,163,.43*spread);
+      ctx.restore();continue;
+    }
     for(let i=0;i<13;i++){
       const x=fire.x+(i-6)*2.65*spread, y=158+Math.cos(i*4)*3;
       const h=(3+3*Math.sin(t*9+i*.8)+6*(1-Math.abs(i-6)/8))*fade;
@@ -2777,7 +2879,7 @@ function dfOpen(P,done){
   const cnt={w:0,b:0,h:0,B:0}; plan.list.forEach(e=>cnt[e.type]++);
   const scout = P.known ? `🔭 정찰 결과: 감염자 ${cnt.w}${cnt.b?` · 거구 ${cnt.b}`:''}${cnt.h?` · 사냥꾼 ${cnt.h}`:''}${cnt.B?' · 🗿거인':''} — 중간에 큰 물결이 한 번 온다`
     : P.radio ? `📻 잭: "대충 ${Math.round(plan.N/10)*10}마리쯤… 정확히는 몰라."` : '얼마나 올지 모른다. (정찰하면 무리 구성이 보인다)';
-  const placeText=()=>{ top.innerHTML=`<b>🌙 ${dateStr()} 밤 — 습격!</b> 담장 내구 ${P.dp}<br><span>${scout}</span>${P.boss?'<br><span style="color:#e7b6ff">🗿 거인에게는 총알이 듣지 않는다. 나타나면 교과서 개념을 입력해 맞혀라! (${P.bossNeed||3}번)</span>':''}<br><span>직접 던질 것: 💣 수류탄 ${P.nades||0} · 🔥 화염병 ${P.fires||0}${P.units.includes('zofia')?' · 🔧 조피아 긴급 수리(물자 1/회 · 밤당 2회 · 실패 가능)':''}</span>`;
+  const placeText=()=>{ top.innerHTML=`<b>${P.preview?'야간 습격 미리보기':'🌙 '+dateStr()+' 밤 — 습격!'}</b> 담장 내구 ${P.dp}<br><span>${scout}</span>${P.boss?'<br><span style="color:#e7b6ff">🗿 거인에게는 총알이 듣지 않는다. 나타나면 교과서 개념을 입력해 맞혀라! (${P.bossNeed||3}번)</span>':''}<br><span>직접 던질 것: 💣 수류탄 ${P.nades||0} · 🔥 화염병 ${P.fires||0}${P.units.includes('zofia')?' · 🔧 조피아 긴급 수리(물자 1/회 · 밤당 2회 · 실패 가능)':''}</span>`;
     const s=ui.sel; tip.innerHTML = !s ? '배치 전략: 종탑=장거리·강한 한 발, 왼쪽 창가=빠른 사격, 오른쪽 창가=광역 지원, 전방=근접 저지. 동료의 신뢰도도 사격 효율에 반영된다. 카드를 눌러 위치를 바꿔 보자.' : s==='trap' ? '덫: 눈밭 바닥을 누르면 그 자리로 옮긴다. 밟은 놈은 다치고 거구·거인은 잠시 묶인다.' : `<b>${DF_UNITS[s].n}</b> — ${DF_UNITS[s].tip} · 지금 자리: ${DF_SLOTS[place.units[s]].n} (${DF_SLOTS[place.units[s]].tip})`; };
   const L=e=>{ const r=cv.getBoundingClientRect(); return {x:(e.clientX-r.left)/r.width*DF.W, y:(e.clientY-r.top)/r.height*DF.H}; };
   const act=document.getElementById('dfAct');
@@ -2856,18 +2958,24 @@ function dfOpen(P,done){
     if(status!==previousStatus){top.innerHTML=status;previousStatus=status;}
     updateRepair(); if(st.supLeft!==lastActSup)renderAct(); dfDraw(ctx,st,ui); if(st.done) return finish(); raf=requestAnimationFrame(loop); };
   const start=()=>{ S.lastFormation={...place.units}; ui.phase='run'; ui.sel=null; tip.innerHTML=''; st=dfCreate(P,place);
-    st.emitSound=kind=>{ if(ui.phase==='run'&&speed===1)battleSound(kind); };
+    st.emitSound=kind=>{ if(ui.phase==='run')battleSound(kind); };
     nextBattleCue.clear(); renderAct();
     btns.innerHTML='<button id="dfFast">⏩ 2배속</button><button id="dfSkip">⏭ 결과</button>'+(P.units.includes('zofia')?'<button id="dfRepair">🔧 수리 전환</button>':'');
     updateRepair();
     if(document.getElementById('dfRepair')) document.getElementById('dfRepair').onclick=()=>{const z=st.units.find(u=>u.id==='zofia');if(!z||st.broke||st.repairAttempts>=2||st.supLeft<1)return;z.repair=!z.repair;if(z.repair && !S.flags.repairExplained){S.flags.repairExplained=true;tip.textContent='조피아가 사격을 멈추고 담장을 고친다. 시도할 때마다 물자 1, 하룻밤에 두 번까지. 실패해도 물자는 소모된다.';}z.cd=Math.max(z.cd,.25);updateRepair();};
-    document.getElementById('dfFast').onclick=(e)=>{ speed=speed===1?2:1; if(speed===2)silenceChannel('sound'); e.target.textContent=speed===1?'⏩ 2배속':'▶ 보통'; };
+    document.getElementById('dfFast').onclick=(e)=>{ speed=speed===1?2:1; e.target.textContent=speed===1?'⏩ 2배속':'▶ 보통'; };
     document.getElementById('dfSkip').onclick=()=>{ if(dfBoss(st)||(P.boss&&!st.bossSeen)){ tip.innerHTML='<b style="color:#ff7a6a">거인이 있는 한 건너뛸 수 없다!</b>'; return; } st.emitSound=null; silenceChannel('sound'); while(!st.done) dfStep(st,.05); finish(); };
     raf=requestAnimationFrame(loop); };
   const idle=()=>{ if(ui.phase!=='place') return; dfDraw(ctx,st,ui); requestAnimationFrame(idle); };
   placeText(); idle();
   btns.innerHTML='<button class="primary" id="dfGo">▶ 습격 시작</button>';
   document.getElementById('dfGo').onclick=start;
+  if(!FX.sound){
+    const audible=document.createElement('button');
+    audible.textContent='🔊 효과음 켜고 시작';
+    audible.onclick=()=>{if(!FX.sound)toggleAudio('sound');start();};
+    btns.appendChild(audible);
+  }
 }
 
 /* ================= 새 동료 4명 (후보 8명 중 매판 4명) ================= */
@@ -4099,6 +4207,15 @@ $('startBtn').addEventListener('click',newBatch,true);
 try{ requestAnimationFrame(snowTick); }catch(e){}
 $('nameInput').addEventListener('keydown',e=>{if(e.key==='Enter')startGame();});
 renderRanks();
+if(new URLSearchParams(location.search).get('preview')==='battle'){
+  S=newState('전투 미리보기');
+  S.day=1;
+  audioScene('night');
+  dfOpen({preview:true,units:['me','emil','jack','zofia','ibra'],p:10,dp:20,sup:5,
+    fires:5,nades:3,traps:0,bond:{},nt:'hunter',bruteHit:true,known:true,seed:1945},()=>{
+    S=null;audioScene('shelter');
+  });
+}
 </script>
 </body>
 </html>
