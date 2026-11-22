@@ -110,7 +110,7 @@ th{color:var(--dim);font-weight:400}
 #dfModal{position:fixed;inset:0;background:#07090c;z-index:12;display:flex;align-items:center;justify-content:center}
 #dfModal.hidden{display:none}
 #dfStage{position:relative;width:min(100vw,calc(100vh*16/9),1280px);aspect-ratio:16/9}
-#dfCanvas{width:100%;height:100%;display:block;image-rendering:pixelated;image-rendering:crisp-edges;touch-action:none}
+#dfCanvas{width:100%;height:100%;display:block;image-rendering:auto;touch-action:none}
 #dfTop{position:absolute;left:33%;right:24%;top:1.5%;font-size:clamp(10px,1.55vw,16px);line-height:1.45;color:#fff;text-shadow:0 0 3px #000,0 0 3px #000;text-align:center}
 #dfBtns{position:absolute;right:1%;top:2%;display:flex;gap:4px;flex-direction:column;width:22%}
 #dfBtns button{min-height:clamp(30px,6vw,46px);font-size:clamp(11px,1.6vw,16px);border:2px solid #150f1c;border-radius:4px;background:#e8c27a;color:#2a1a0a;font-weight:900;box-shadow:inset 0 -3px 0 #9c6b35}
@@ -128,8 +128,6 @@ th{color:var(--dim);font-weight:400}
 #dfBoss .row{display:flex;gap:6px;margin-top:6px}#dfBoss input{flex:1;min-width:0;font-size:16px;padding:6px 8px;border-radius:4px;border:1px solid #777;background:#0e1114;color:#eee}
 #dfBoss button{font-size:clamp(11px,1.5vw,15px)}
 .dfcode{font-family:'IBM Plex Mono',monospace;font-size:clamp(16px,2.6vw,24px);letter-spacing:4px;color:#ffd36b;font-weight:700}
-#dfRotate{position:absolute;inset:0;background:rgba(7,9,12,.96);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:#fff;text-align:center;padding:20px;z-index:2}
-#dfRotate.hidden{display:none}
 #recModal{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:10;display:flex;align-items:center;justify-content:center;padding:14px}
 #recModal.hidden{display:none}
 #recCard{background:var(--panel);border:1px solid var(--line);border-radius:12px;max-width:760px;width:100%;max-height:86vh;display:flex;flex-direction:column;padding:14px}
@@ -142,12 +140,23 @@ th{color:var(--dim);font-weight:400}
 .it{border:1px dashed var(--line);border-radius:8px;padding:8px;font-size:13px;opacity:.55}
 .it.got{border-style:solid;border-color:#b9a3e0;opacity:1}
 .endJournal{max-height:280px;overflow-y:auto;border:1px solid var(--line);border-radius:8px;padding:4px 10px}
+@media (orientation:portrait) and (max-width:759px){
+ #dfModal{overflow-y:auto;display:block;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+ #dfModal.hidden{display:none}
+ #dfStage{width:100%;min-height:100%;aspect-ratio:auto;display:flex;flex-direction:column;justify-content:center;gap:8px;padding:10px 0;box-sizing:border-box}
+ #dfStage>*{position:static}
+ #dfCanvas{order:2;width:100%;height:auto;aspect-ratio:16/9;flex:none}
+ #dfTop,#dfTip,#dfAct,#dfBtns,#dfBoss{width:auto;margin:0 10px;font-size:14px}
+ #dfTop{order:1;text-align:left} #dfTip{order:5} #dfBoss{order:3}
+ #dfBtns{order:6;flex-direction:row;flex-wrap:wrap} #dfAct{order:4}
+ #dfBtns button,#dfAct button{flex:1;min-height:42px;font-size:14px;padding:4px 8px;word-break:keep-all}
+}
 </style>
 </head>
 <body>
 <div id="vig"></div><canvas id="snow"></canvas>
 <div id="dfModal" class="hidden"><div id="dfStage"><canvas id="dfCanvas" width="960" height="540"></canvas><div id="dfTop"></div><div id="dfBtns"></div><div id="dfTip"></div><div id="dfAct"></div><div id="dfBoss" class="hidden"></div></div>
-<div id="dfRotate" class="hidden"><div style="font-size:54px">📱↻</div><b>휴대폰을 가로로 돌려 주세요</b><span class="sys">습격 장면은 가로 화면에서 펼쳐집니다.</span><button class="ghost" id="dfRotSkip">세로로 그냥 할게요</button></div></div>
+</div>
 <div id="recModal" class="hidden"><div id="recCard"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b class="gold">기록</b><button class="hbtn" id="recClose">닫기 ✕</button></div><div id="recBody" style="display:flex;flex-direction:column;min-height:0;flex:1"></div></div></div>
 <div class="wrap">
   <header>
@@ -170,7 +179,7 @@ th{color:var(--dim);font-weight:400}
       <p><b>이어하기</b> — 오전·오후 행동 선택 화면의 '저장 후 나가기'로 보관한다. 같은 기기·브라우저에서 이어할 수 있지만, 불러온 저장 기록은 바로 소비된다. 사망·종전·기록 종료 뒤에는 이어할 수 없다. 서버에 별도 저장하지 않는다.</p>
       <p><b>밤의 날씨와 탐색</b> — 밤마다 하늘이 변한다. 달빛 없는 흐린 밤은 숨기 좋지만 화염병 불빛은 더 눈에 띈다. 반복해서 탐색한 장소는 남은 자원이 줄며, 바스토뉴 보급창 원정은 한 번만 성공적으로 방문할 수 있다.</p>
       <p><b>동료 배치</b> — 종탑은 긴 사거리와 단발 위력이 장점이지만 발사가 느리다. 왼쪽 창가는 빠른 사격, 오른쪽 창가는 넓은 폭발 공격, 바리케이드는 가까운 적 공격과 근접 저지가 강점이다. 신뢰가 높은 동료는 공격 속도와 위력이 소폭 높아진다. 단 하나의 고정 정답 위치는 없다.</p>
-      <p><b>고해상도 전투 화면</b> — 960×540 픽셀 캔버스와 400×470 스프라이트 원본을 적용한다. 모바일에서는 가로 화면을 권장한다. 다운로드 실패 시 기존 전투 그래픽이 나타난다.</p>
+      <p><b>고해상도 전투 화면</b> — 1600×900 설원 배경에 주인공과 동료 8명의 새 전신 그림과 얼굴 카드를 표시한다. 세로 화면에서는 전장 아래에서 배치와 습격을 조작한다. 다운로드 실패 시 기존 전투 그래픽이 나타난다.</p>
       <p><b>전투 투척물</b> — 수류탄은 처음 3개만 주어지며, 쓰면 없어지고 탐색·수첩·원정에서 드물게 찾아야 한다. 화염병은 별도 재고가 아니라 <b>현재 물자 1개를 소비</b>해 던진다. 전투에서 두 버튼 중 하나를 선택하고 감염자가 모인 눈밭을 누르자.</p>
       <p><b>거점 보관 한도</b> — 식량 최대 24, 물자 최대 24, 방어선 최대 65. 저장고에 들어가지 않는 보급품은 더 쌓이지 않는다. 식량은 추운 겨울에는 늦게, 따뜻해지는 봄에는 더 빠르게 상한다. 방어 시설도 오랜 시간 방치하면 조금씩 마모된다.</p>
       <p><b>방어 공사</b> — 바리케이드는 빠르고 저렴하다. 참호와 모래주머니는 물자가 더 들지만 방어선을 크게 강화한다. 함정은 한 번 설치하면 실제 발동한 밤 기준 최대 2회 유지되며, 아무도 오지 않거나 은신에 성공한 밤에는 소모되지 않는다.</p>
@@ -629,7 +638,11 @@ function resumeSavedGame(){
   catch(e){alert('저장된 진행 기록을 읽을 수 없습니다.');return;}
   // 불러오기 전에 슬롯을 소비하여 같은 저장점을 여러 번 이용하지 못하게 한다.
   try{localStorage.removeItem(CONTINUE_KEY);}catch(e){alert('저장 기록을 소비하지 못했습니다. 다른 브라우저 설정을 확인하세요.');return;}
-  S=state;S.resumePoint=null;S.sessionStart=Date.now();
+  S=state;
+  for(const [key,cap] of Object.entries({food:FOOD_CAP,sup:SUP_CAP,def:DEF_CAP})){
+    S[key]=clamp(Number(S[key])||0,0,cap);
+  }
+  S.resumePoint=null;S.sessionStart=Date.now();
   $('nameInput').value=S.name;
   $('startScreen').classList.add('hidden');$('endScreen').classList.add('hidden');$('gameScreen').classList.remove('hidden');
   document.body.classList.add('ingame');$('btnRec').classList.remove('hidden');
@@ -681,7 +694,11 @@ function boostTopic(keys,days=3){ if(keys&&keys.length) S.topicBoost={keys,until
 // 한 판의 일반 문제는 가능한 한 중복하지 않으며, 서로 가까운 개념도 7일 간격을 둔다.
 // 아래 키워드는 맞춤형 개념 묶음이며, 같은 사건의 O/X·객관식·초성 중복을 억제한다.
 const QUIZ_CONCEPTS=['독소 불가침 조약','베르사유 조약','대서양 헌장','태평양 전쟁','제2차 세계 대전','제1차 세계 대전','대공황','뉴딜 정책','블록 경제','국제 연맹','국제 연합','사회 진화론','인종주의','제국주의','파시즘','나치즘','홀로코스트','히틀러 유겐트','뉘른베르크','스탈린그라드','아르덴 대공세','총력전','참호전','삼국 동맹','삼국 협상','사라예보','러시아 혁명','10월 혁명','피의 일요일','민족 자결','3·1 운동','5·4 운동','신해혁명','인도 국민 회의','세포이의 항쟁','의화단 운동','아편 전쟁','메이지 유신','독일 통일','이탈리아 통일','러일 전쟁','청일 전쟁','인도차이나','폴란드','유대인','독립운동'];
+const topicCache={mc:[],ox:[],cho:[],ord:[]};
 function quizTopic(kind,i){
+  return topicCache[kind][i]??(topicCache[kind][i]=classifyTopic(kind,i));
+}
+function classifyTopic(kind,i){
   const q=({mc:MC,ox:OX,cho:CHO,ord:ORDER})[kind][i];
   const raw=[q.q,q.h,q.t,(kind==='mc'?q.o[q.a]:kind==='cho'?q.a[0]:''),...(q.items||[]).map(t=>t[0])].filter(Boolean).join(' ').replace(/\s+/g,' ');
   const found=QUIZ_CONCEPTS.filter(x=>raw.includes(x));if(found.length)return found.sort((a,b)=>b.length-a.length)[0];
@@ -704,7 +721,11 @@ const QUESTION_AREAS=[
  ['전체주의·인권',/파시즘|파시스트|무솔리니|나치즘|전체주의|인종주의|차별|반유대|유대인|청소년 단체|독재|백장미단/],
  ['전후 질서·국제 관계',/베르사유|평화 조약|대서양 헌장|국제 연맹|국제 연합|유엔|연합국|전후|냉전|얄타|포츠담|국제 질서|국제 기구|평화/]
 ];
+const areaCache={mc:[],ox:[],cho:[],ord:[]};
 function quizArea(kind,idx){
+  return areaCache[kind][idx]??(areaCache[kind][idx]=classifyArea(kind,idx));
+}
+function classifyArea(kind,idx){
   const q=({mc:MC,ox:OX,cho:CHO,ord:ORDER})[kind][idx];
   const t=[q.q,q.h,q.t,kind==='mc'?q.o[q.a]:kind==='cho'?q.a?.[0]:''].filter(Boolean).join(' ');
   for(const [area,rx] of QUESTION_AREAS)if(rx.test(t))return area;
@@ -727,8 +748,16 @@ function questionPool(kind,ctx){
 }
 function draw(kind,ctx){
   S.deck=S.deck||{};S.quizTopics=S.quizTopics||{};S.quizHistory=S.quizHistory||[];S.openingPrevious=S.openingPrevious||loadOpeningHistory();S.quizAreaRecent=S.quizAreaRecent||[];
+  if(S.day<=12 && !S.openingTopics){
+    const recentTopics=[];
+    for(const key of S.openingPrevious.slice(-45)){
+      const [k,n]=key.split(':');
+      if(({mc:MC,ox:OX,cho:CHO,ord:ORDER})[k]?.[n])recentTopics.push(quizTopic(k,Number(n)));
+    }
+    S.openingTopics=recentTopics;
+  }
   if(S.forceIdx && S.forceIdx.kind===kind){
-    const i=S.forceIdx.i;S.forceIdx=null;S.used[kind].add(i);S.lastDrawKind=kind;S.quizTopics[quizTopic(kind,i)]=S.day;commitQuizSelection(kind,i);return i;
+    const i=S.forceIdx.i;S.forceIdx=null;S.quizHistory.push({kind,idx:i,day:S.day});S.used[kind].add(i);S.lastDrawKind=kind;S.quizTopics[quizTopic(kind,i)]=S.day;commitQuizSelection(kind,i);return i;
   }
   const order=(ctx==='boss'||ctx==='voice')?[kind]:[kind,...['mc','ox','cho','ord'].filter(k=>k!==kind)];
   let chosen=null, ckind=kind;
@@ -752,6 +781,12 @@ function draw(kind,ctx){
   const pool=questionPool(ckind,ctx);
   if(!S.deck[ckind]||S.deck[ckind].length!==pool.src.length)S.deck[ckind]=shuffle(pool.src.map((_,i)=>i));
   const rank=new Map(S.deck[ckind].map((v,n)=>[v,n]));
+  if(S.day<=12){
+    const unseen=chosen.filter(i=>!S.openingPrevious.includes(ckind+':'+i));
+    if(unseen.length)chosen=unseen;
+    const newTopics=chosen.filter(i=>!S.openingTopics.includes(quizTopic(ckind,i)));
+    if(newTopics.length)chosen=newTopics;
+  }
   if(S.topicBoost&&S.day<=S.topicBoost.until&&ctx!=='rollcall'&&chance(.3)){
     const sub=chosen.filter(i=>S.topicBoost.keys.some(k=>JSON.stringify(pool.src[i]).includes(k)));
     if(sub.length)chosen=sub;
@@ -1020,7 +1055,7 @@ const ARCS = {
  emil:[
   {d:'1945-01-31',lines:['에밀이 눈 위에 쪼그려 앉아 철사로 올가미를 만들어 보였다. "토끼든 그림자든, 길목을 알면 잡을 수 있지."','"이 숲은 1914년에도, 1940년에도 독일군이 지나간 길이야. 길목은 변하지 않아."'],fx:{sup:1},note:'에밀에게 올가미 놓는 법을 배웠다'},
   {d:'1945-02-01',lines:['에밀이 가슴 주머니에서 구겨진 사진을 꺼냈다. 땋은 머리의 소녀가 웃고 있다.','"손녀 안나야. 리에주에 살지. 9월에 그 도시가 해방되던 날, 미군 지프 위에서 깃발을 흔들었다더군."'],fx:{mo:3},note:'에밀의 손녀 안나 이야기를 들었다'},
-  {d:'1945-02-03',win:3,quiz:{k:'mc',has:'벨기에령 콩고에서 주민들이',ask:'에밀이 장부를 덮으며 물었다. "열병이 이것부터 지워 주면 좋겠지만… 자네는 잊지 말게. 콩고 사람들이 무엇 때문에 손목을 잃었는지 아나?"',ok:'"그래. 그 고무로 벨기에의 거리와 궁전이 세워졌지."',no:'"고무와 상아였네. 그 고무로 벨기에의 거리와 궁전이 세워졌지."',fx:{kn:1}},lines:['눈보라가 그친 밤, 다들 잠든 뒤 에밀이 난롯가에서 입을 열었다.','"젊을 때 콩고의 고무 회사에서 일했네. 할당량을 못 채운 마을이 어떻게 되는지 봤지. 나는 장부에 숫자를 적었을 뿐이라고 스스로를 달랬어."','그가 낡은 장부 한 권을 불 속에 던지려다 멈췄다.'],
+  {d:'1945-02-03',win:3,quiz:{k:'mc',subject:/콩고/,has:'벨기에령 콩고에서 주민들이',ask:'에밀이 장부를 덮으며 물었다. "열병이 이것부터 지워 주면 좋겠지만… 자네는 잊지 말게. 콩고 사람들이 무엇 때문에 손목을 잃었는지 아나?"',ok:'"그래. 그 고무로 벨기에의 거리와 궁전이 세워졌지."',no:'"고무와 상아였네. 그 고무로 벨기에의 거리와 궁전이 세워졌지."',fx:{kn:1}},lines:['눈보라가 그친 밤, 다들 잠든 뒤 에밀이 난롯가에서 입을 열었다.','"젊을 때 콩고의 고무 회사에서 일했네. 할당량을 못 채운 마을이 어떻게 되는지 봤지. 나는 장부에 숫자를 적었을 뿐이라고 스스로를 달랬어."','그가 낡은 장부 한 권을 불 속에 던지려다 멈췄다.'],
    choices:[
     {label:'"태우지 마세요. 기억해야 하니까요."',bond:{emil:1},fx:{mo:4},item:'congo',res:'에밀은 한참 뒤 장부를 당신에게 건넸다. "그래, 누군가는 기억해야지."',note:'에밀의 콩고 장부를 맡았다'},
     {label:'"이제 그만 자신을 용서하세요."',bond:{emil:1},fx:{mo:2},res:'에밀은 고개를 저었다. "용서는 내가 하는 게 아니야." 장부는 불 속으로 들어갔다.',note:'에밀이 콩고 장부를 태웠다'}]},
@@ -1053,7 +1088,7 @@ const ARCS = {
    fx:()=>S.flags.jackWent?{food:3,sup:3,mo:8}:{mo:5},item:'xmas',note:()=>S.flags.jackWent?'잭이 보급품을 싣고 돌아왔다':'101사단의 크리스마스 메시지를 받았다'},
   {d:'1945-02-12',lines:['잭이 손가락으로 탁자를 두드렸다. 짧게, 길게, 짧게. "모스 부호야. 알아 두면 무전기가 없어도 손전등으로 말할 수 있어."'],flag:'morse',note:'잭에게 모스 부호를 배웠다',res:'📡 이제 사령부 교신에서 2개만 맞혀도 보급을 모두 받는다.'},
   {d:'1945-03-08',win:3,lines:['레마겐 소식에 잭이 벌떡 일어났다. "9기갑 사단! 형 빌이 9기갑 사단이야! 형이 라인강을 건넜어!"'],fx:{mo:6},note:'잭의 형이 라인강을 건넜다'},
-  {d:'1945-04-13',win:3,quiz:{k:'mc',has:'대공황 극복을 위해 국가가 경제에',ask:'잭이 물었다. "우리 아버지를 다시 일하게 해 준 그 정책, 이름 기억나? 열병 걸리면 이런 것부터 잊는대."',ok:'"그래, 뉴딜. 정부가 댐이랑 도로를 지으면서 사람들한테 일자리를 줬지."',no:'"뉴딜이야. 정부가 댐이랑 도로를 지으면서 사람들한테 일자리를 줬지."',fx:{kn:1}},lines:['잭이 V-우편 용지에 편지를 쓰다 멈췄다. "아버지는 루스벨트 덕분에 다시 일했어. 뉴딜 공사장에서. 지금쯤 부엌에서 우시겠지."','그는 끝내 편지를 다 쓰지 못했다. 당신에게 빈 용지 한 장을 건넸다.'],fx:{mo:-2},item:'vmail',note:'루스벨트의 죽음에 잭이 울었다'},
+  {d:'1945-04-13',win:3,quiz:{k:'mc',subject:/뉴딜|대공황/,has:'대공황 극복을 위해 국가가 경제에',ask:'잭이 물었다. "우리 아버지를 다시 일하게 해 준 그 정책, 이름 기억나? 열병 걸리면 이런 것부터 잊는대."',ok:'"그래, 뉴딜. 정부가 댐이랑 도로를 지으면서 사람들한테 일자리를 줬지."',no:'"뉴딜이야. 정부가 댐이랑 도로를 지으면서 사람들한테 일자리를 줬지."',fx:{kn:1}},lines:['잭이 V-우편 용지에 편지를 쓰다 멈췄다. "아버지는 루스벨트 덕분에 다시 일했어. 뉴딜 공사장에서. 지금쯤 부엌에서 우시겠지."','그는 끝내 편지를 다 쓰지 못했다. 당신에게 빈 용지 한 장을 건넸다.'],fx:{mo:-2},item:'vmail',note:'루스벨트의 죽음에 잭이 울었다'},
   {d:'1945-05-11',lines:['무전기에서 잭의 이름이 불렸다. 9기갑 사단 통신병이 전한 짧은 문장. "빌 하워드 상병, 무사함. 동생에게 안부를."','잭은 그 자리에 주저앉아 한참을 웃었다.'],fx:{mo:10},note:'잭의 형 빌이 살아 있다는 소식'},
   {d:'1945-08-08',lines:()=>['히로시마 소식 뒤로 잭이 말이 없다. "이제 다들 집에 가겠지. 태평양으로 끌려갈 일도 없고. 그런데 왜 기쁘지가 않을까."'].concat(ok('leon')?['레온이 조용히 말했다. "도시 하나가 한순간에 사라졌으니까. 그건 기뻐할 일만은 아니지."']:[]),note:'원자 폭탄 소식에 잭이 혼란스러워했다'},
   {d:'1945-09-20',lines:['잭이 무전기 앞에 오래 앉아 있었다. "귀환 명령이야. 살아 있는 미군은 전부 프랑스 르아브르 항구로 모이래. 집으로 가는 배가 있대."'],
@@ -1064,7 +1099,7 @@ const ARCS = {
  ],
  marie:[
   {d:'1945-01-31',lines:['마리가 구급 가방을 뒤집어 털었다. 붕대 세 롤, 요오드 한 병, 설파제 가루 반 봉지.','"이걸로는 일주일도 못 버텨요. 구호소나 보급소에 가면 약을 꼭 챙겨 와 주세요."'],note:'마리의 약이 바닥나 간다'},
-  {d:'1945-02-04',quiz:{k:'cho',has:'서부 전선, 땅을 파고',ask:'마리가 물었다. "아버지는 그 싸움을 땅굴 속 지옥이라고 하셨어요. 그 싸움 방식, 이름이 뭔지 알아요?"',ok:'"맞아요. 몇 미터를 빼앗으려고 수십만 명이 죽었대요."',no:'"참호전이에요. 몇 미터를 빼앗으려고 수십만 명이 죽었대요."',fx:{kn:1}},lines:['마리가 가위를 소독하며 말했다. "아버지는 1916년 베르됭에서 다리를 잃으셨어요. 그때 아버지 다리를 자른 사람도 간호사였대요."','"그래서 저는 자르는 사람이 아니라, 지키는 사람이 되고 싶었어요."'],fx:{mo:3},note:'마리 아버지의 베르됭 이야기'},
+  {d:'1945-02-04',quiz:{k:'cho',subject:/참호전|서부 전선/,has:'서부 전선, 땅을 파고',ask:'마리가 물었다. "아버지는 그 싸움을 땅굴 속 지옥이라고 하셨어요. 그 싸움 방식, 이름이 뭔지 알아요?"',ok:'"맞아요. 몇 미터를 빼앗으려고 수십만 명이 죽었대요."',no:'"참호전이에요. 몇 미터를 빼앗으려고 수십만 명이 죽었대요."',fx:{kn:1}},lines:['마리가 가위를 소독하며 말했다. "아버지는 1916년 베르됭에서 다리를 잃으셨어요. 그때 아버지 다리를 자른 사람도 간호사였대요."','"그래서 저는 자르는 사람이 아니라, 지키는 사람이 되고 싶었어요."'],fx:{mo:3},note:'마리 아버지의 베르됭 이야기'},
   {d:'1945-02-09',lines:['마리가 결심한 얼굴로 말했다. "놈들이 왜 기억부터 잃는지 알고 싶어요. 덫에 걸린 놈 하나를 지하에 묶어 두면 관찰할 수 있어요."'],
    choices:[
     {label:'허락하고 함께 지킨다',bond:{marie:2},sub:'위험 · 연구가 시작된다',fx:{hp:-6},flag:'research',res:'밤새 사슬이 철커덕거렸다. 마리는 촛불 아래서 공책을 빼곡히 채웠다.',note:'마리의 감염자 관찰을 허락했다'},
@@ -1082,13 +1117,13 @@ const ARCS = {
  leon:[
   {d:'1945-01-30',lines:()=>[`레온이 교실 칠판의 먼지를 털고 분필로 날짜를 적었다. ${dateStr().replace(/ \(.\)$/,'')}.`,'"기록하지 않으면, 우리가 여기 있었다는 것도 잊힐 걸세. 매일 한 줄씩 적어 두게."'],note:'레온이 생존 일지를 쓰자고 했다',res:'📖 매일 밤 생존 일지가 쌓인다. 오른쪽 위 「기록」에서 볼 수 있다.'},
   {d:'1945-02-01',lines:['레온이 낡은 신분증을 보여 주었다. 이름은 "레옹 브리스", 종교는 가톨릭.','"가짜일세. 1942년부터 이 마을의 한 가족이 나를 조카라고 하며 숨겨 줬지. 노란 별을 달지 않으려면 다른 사람이 되어야 했네."'],item:'fakeid',note:'레온의 가짜 신분증 이야기'},
-  {d:'1945-02-08',quiz:{k:'mc',has:'개인의 자유보다 국가와 민족의 이익을',ask:'레온이 칠판에 썼다. "자, 열병 검사 겸 수업일세. 이런 선전을 앞세워 독재와 침략을 정당화한 사상을 뭐라고 부르지?"',ok:'"정확하네. 그것은 투표함을 통해서도 왔지."',no:'"전체주의일세. 그것은 투표함을 통해서도 왔지."',fx:{kn:1}},lines:['레온이 바람에 날려 온 전단 한 장을 펴 들었다. 굵은 글씨로 "이 전쟁은 유대인의 전쟁이다".','"보게. 경제가 무너지면 누군가에게 책임을 돌려야 하지. 거짓도 크고 단순하게, 자주 되풀이하면 믿는 사람이 생긴다네."'],fx:{kn:1},item:'propaganda',note:'레온과 나치 선전 전단을 읽었다'},
+  {d:'1945-02-08',quiz:{k:'mc',subject:/전체주의/,has:'개인의 자유보다 국가와 민족의 이익을',ask:'레온이 칠판에 썼다. "자, 열병 검사 겸 수업일세. 이런 선전을 앞세워 독재와 침략을 정당화한 사상을 뭐라고 부르지?"',ok:'"정확하네. 그것은 투표함을 통해서도 왔지."',no:'"전체주의일세. 그것은 투표함을 통해서도 왔지."',fx:{kn:1}},lines:['레온이 바람에 날려 온 전단 한 장을 펴 들었다. 굵은 글씨로 "이 전쟁은 유대인의 전쟁이다".','"보게. 경제가 무너지면 누군가에게 책임을 돌려야 하지. 거짓도 크고 단순하게, 자주 되풀이하면 믿는 사람이 생긴다네."'],fx:{kn:1},item:'propaganda',note:'레온과 나치 선전 전단을 읽었다'},
   {d:'1945-02-19',win:5,lines:['아우슈비츠 소식을 들은 레온이 라디오를 끄고 밖으로 나갔다. 눈밭 한가운데 서서 움직이지 않는다.','당신이 다가가자 그가 말했다. "누이 한나는 1942년 여름, 메헬렌의 수용소로 끌려갔네. 거기서 동쪽으로 가는 열차를 탔다고 들었어. 동쪽이 어디였는지, 오늘 알았네."'],
    choices:[
     {label:'아무 말 없이 곁에 서 있는다',bond:{leon:2},fx:{mo:4},res:'둘은 해가 질 때까지 눈밭에 서 있었다. 돌아오는 길에 레온이 당신의 어깨를 한 번 짚었다.',note:'레온의 곁을 지켰다'},
     {label:'혼자 있게 둔다',bond:{leon:-1},act:()=>{mate('leon').hurt=2; render();},res:'레온은 이틀 동안 도서관에서 나오지 않았다.',note:'레온이 이틀 동안 도서관에 틀어박혔다'}]},
   {d:'1945-02-22',lines:['레온이 낡은 신문 조각을 칠판 옆에 붙였다. "2년 전 오늘, 뮌헨에서 대학생 남매가 처형되었네. 한스와 조피 숄. 나치의 거짓말을 고발하는 전단을 뿌렸다는 이유로."','"독일 사람이 모두 침묵한 건 아니었어. 그걸 잊지 말아 주게."'],
-   quiz:{k:'mc',has:'나치의 청소년 선전과 독재에 저항하여 전단을',ask:'레온이 분필을 내밀었다. "열병 검사 겸 수업일세. 그 학생들의 모임, 이름을 써 보게."',ok:'"그래. 하얀 장미. 그 이름을 기억하는 것도 저항일세."',no:'"백장미단일세. 그 이름을 기억하는 것도 저항이지."',fx:{kn:1}},note:'레온에게 백장미단 이야기를 들었다'},
+   quiz:{k:'mc',subject:/백장미단/,has:'나치의 청소년 선전과 독재에 저항하여 전단을',ask:'레온이 분필을 내밀었다. "열병 검사 겸 수업일세. 그 학생들의 모임, 이름을 써 보게."',ok:'"그래. 하얀 장미. 그 이름을 기억하는 것도 저항일세."',no:'"백장미단일세. 그 이름을 기억하는 것도 저항이지."',fx:{kn:1}},note:'레온에게 백장미단 이야기를 들었다'},
   {d:'1945-03-01',lines:['저녁마다 레온이 칠판 앞에 서기로 했다. "수업을 하겠네. 학생은 자네 하나지만." 오늘은 1914년, 사라예보의 총성부터 시작했다.'],flag:'lessons',note:'레온의 저녁 수업이 시작되었다',res:'📚 이제 7일마다 레온의 수업으로 지식과 사기가 오른다.'},
   {d:'1945-03-22',lines:['수업 도중 레온이 셔츠 단추를 풀어 가슴의 흉터를 보여 주었다. "1916년 솜강에서 얻은 걸세. 나는 독일 황제를 위해 참호에서 싸웠어. 훈장도 받았지."','"그 나라가 1933년에 나를 학교에서 내쫓았네. 훈장은 아무것도 지켜 주지 못했어."'],fx:{kn:1},note:'레온이 1차 대전 참전 군인이었음을 알았다'},
   {d:'1945-04-20',win:4,lines:()=>['BBC 기자가 영국군이 해방한 베르겐벨젠 수용소의 모습을 떨리는 목소리로 전했다. 레온은 끝까지 들었다.', S.flags.redcross?'"적십자 답장은 아직이네. 기다리는 게 이렇게 무서운 줄 몰랐어."':'레온이 처음으로 부탁했다. "적십자에… 이름 하나를 보내 줄 수 있겠나." 당신은 그 이름을 받아 적었다. 한나 바이스.'],act:()=>{S.flags.redcross=1;},note:'BBC가 베르겐벨젠의 참상을 보도했다'},
@@ -1103,7 +1138,7 @@ const ARC_ORDER=['leon','jack','emil','marie','zofia','yusuf','ibra','enzo'];
 function daysBetween(a,b){ return Math.round((new Date(b)-new Date(a))/86400000); }
 function nextBeat(){
   const today=iso(curDate()); let best=null;
-  for(const who of ARC_ORDER){
+  for(const who of shuffle(ARC_ORDER)){
     const m=mate(who);
     while(true){
       const b=ARCS[who][S.arc[who]]; if(!b) break;
@@ -1141,18 +1176,48 @@ function playBeat(who,b,next){
     if(checkDeath()) return;
     cont(next);
   };
-  const qz=b.quiz && beatQuiz(b.quiz);
-  if(qz!=null){
-    if(b.quiz.ask) log(b.quiz.ask,'beat');
-    S.forceIdx={kind:b.quiz.k,i:qz};
-    puzzle(b.quiz.k,`💬 ${m.name.split(' ')[0]}의 물음`,(r)=>{ log(r?b.quiz.ok:b.quiz.no, r?'good':'beat'); if(r){ bond(who,1,true); if(b.quiz.fx){ log(`💬 이야기 보너스 — ${b.quiz.rw||'이야기를 기억해 준 보답'}`,'sys'); change(b.quiz.fx); } } go(); },'judge');
-  } else go();
+  const selected=b.quiz && beatQuiz(b.quiz);
+  if(!selected)return go();
+  const {kind,i,original}=selected;
+  const q=b.quiz;
+  const ask=original?q.ask:STORY_PROMPTS[who];
+  if(ask)log(ask,'beat');
+  S.forceIdx={kind,i};
+  puzzle(kind,`💬 ${m.name.split(' ')[0]}의 물음`,right=>{
+    if(original)log(right?q.ok:q.no,right?'good':'beat');
+    if(right){
+      bond(who,1,true);
+      if(q.fx){log(`💬 이야기 보너스 — ${q.rw||'이야기를 기억해 준 보답'}`,'sys');change(q.fx);}
+    }
+    go();
+  },'judge');
 }
+const STORY_PROMPTS={
+  emil:'에밀이 장부를 다시 펼쳤다. “여기 적힌 사람들이 어떤 일을 겪었는지, 자네가 기억하는 것부터 얘기해 주게.”',
+  jack:'잭이 무전기 소리를 줄였다. “집에서 온 편지를 읽다 보니 궁금해졌어. 자넨 어떻게 배웠어?”',
+  marie:'마리가 붕대를 말며 말했다. “아버지 세대가 겪은 전쟁 이야기를 조금만 더 해 봐요.”',
+  leon:'레온이 분필을 건넸다. “오늘은 자네가 설명해 보게. 우리가 기억해야 할 게 뭔지.”',
+  yusuf:'유수프가 손바닥을 펴 보였다. “내 고향 이야기를 들었으니, 이번엔 당신이 기억한 걸 들려주오.”',
+  ibra:'이브라히마가 난롯가에 자리를 내주었다. “지도에서 보던 일을 우리 식구들은 몸으로 겪었지. 기억나는가?”',
+  zofia:'조피아가 공구를 내려놓았다. “우리 집에 닥친 일을 다른 사람에게도 설명해 줄 수 있겠어요?”',
+  enzo:'엔초가 작은 목소리로 말을 이었다. “그 시절 일을 자네는 어떻게 기억하나?”'
+};
 function beatQuiz(q){
-  const src={mc:MC,ox:OX,cho:CHO}[q.k]; if(!src) return null;
-  const today=iso(curDate());
-  const i=src.findIndex(x=>((x.q||x.h||'').includes(q.has)) && (!x.av||x.av<=today));
-  return i>=0?i:null;
+  const banks={mc:MC,ox:OX,cho:CHO};
+  const original=banks[q.k].findIndex(x=>(x.q||x.h||'').includes(q.has));
+  const previous=S.openingPrevious??loadOpeningHistory();
+  const candidates=[];
+  for(const [kind,bank] of Object.entries(banks)){
+    for(const i of questionPool(kind,'judge').fresh){
+      const x=bank[i],exact=kind===q.k && i===original;
+      const words=[x.q,x.h,kind==='mc'?x.o[x.a]:kind==='cho'?x.a[0]:''].join(' ');
+      if(!exact && !q.subject.test(words))continue;
+      if(S.day<=12 && previous.includes(kind+':'+i))continue;
+      if(S.day-(S.quizTopics[quizTopic(kind,i)]??-100)<5)continue;
+      candidates.push({kind,i,original:exact});
+    }
+  }
+  return candidates.length?pick(candidates):null;
 }
 function arcTotal(who){ return ARCS[who].length; }
 
@@ -1990,9 +2055,11 @@ function dfHeadless(P,place){ const st=dfCreate(P,place); let next=0;
    The original sprites remain as fallback when the art file is unavailable. */
 const RS_ART=(()=>{
   const im=new Image();let ready=false;
+  const party=new Image();
+  party.src="assets/companions-hd.webp";
   const scenery=new Image();let sceneReady=false;
   scenery.onload=()=>{sceneReady=true;};scenery.onerror=()=>{sceneReady=false;};
-  scenery.src='assets/battle_bg_hd.webp?v=960x540-20261122';
+  scenery.src='assets/battlefield-1600.webp';
   im.onload=()=>{ready=true;};im.onerror=()=>{ready=false;};
   im.src='assets/battle_atlas.webp?v=400x470-20261122';
   const actors=['me','emil','jack','marie','leon','yusuf','ibra','zofia','enzo'];
@@ -2016,8 +2083,20 @@ const RS_ART=(()=>{
       if(ok && weather==='moon'){ctx.fillStyle='rgba(8,15,29,.16)';ctx.fillRect(0,0,320,180);}
       return ok;
     },
+    portrait:(ctx,id,x,y)=>{
+      const i=actors.indexOf(id);
+      if(i<0||!party.naturalWidth)return false;
+      ctx.save();ctx.imageSmoothingEnabled=true;
+      ctx.drawImage(party,i*176,224,96,96,x,y,19,20);
+      ctx.restore();return true;
+    },
     actor:(ctx,id,x,y,fire)=>{
       const i=actors.indexOf(id);if(i<0)return false;
+      if(party.naturalWidth){
+        ctx.save();ctx.imageSmoothingEnabled=true;
+        ctx.drawImage(party,i*176,0,176,224,x-4-(fire?1:0),y-13,25,32);
+        ctx.restore();return true;
+      }
       return crop(ctx,(fire?28:0),185+i*30,28,30,x-4,y-10,27,34);
     },
     enemy:(ctx,z,t)=>{
@@ -2156,7 +2235,7 @@ function dfDraw(ctx,st,ui){
   // 아래 카드 (배치 단계)
   if(ui&&ui.phase==='place'){ ui.cards.forEach((c,i)=>{ const x=4+i*24, y=154; frame(ctx,x,y,22,24, ui.sel===c?'#fff2a0':'#f3dfb2');
       if(c==='trap'){ ctx.fillStyle='#6b7078'; ctx.fillRect(x+5,y+15,12,3); ctx.fillStyle='#a8aeb6'; for(let k=0;k<4;k++) ctx.fillRect(x+6+k*3,y+10,1,5); num(ctx,String(st.traps.length),x+15,y+4,'#ffffff'); }
-      else pdraw(ctx,G.u[c],x+3,y+4); }); }
+      else if(!RS_ART.portrait(ctx,c,x+1.5,y+2))pdraw(ctx,G.u[c],x+3,y+4); }); }
   ctx.restore();
 }
 function performanceNow(){ return (typeof performance!=='undefined'&&performance.now)?performance.now():Date.now(); }
@@ -2206,12 +2285,8 @@ function dfOpen(P,done){
   if(!ctx || P.auto){ P.ask=dfHeadlessAsk; return done(dfHeadless(P,place)); }
   const M=document.getElementById('dfModal'); M.classList.remove('hidden');
   const top=document.getElementById('dfTop'), btns=document.getElementById('dfBtns'), tip=document.getElementById('dfTip'), bp=document.getElementById('dfBoss');
-  const rot=document.getElementById('dfRotate');
-  const portrait=()=>window.matchMedia&&window.matchMedia('(orientation: portrait)').matches&&window.innerWidth<760;
-  const checkRot=()=>{ rot.classList.toggle('hidden', !portrait() || rot.dataset.skip==='1'); };
-  rot.dataset.skip=''; checkRot(); window.addEventListener('resize',checkRot);
-  document.getElementById('dfRotSkip').onclick=()=>{ rot.dataset.skip='1'; checkRot(); };
-  try{ if(screen.orientation&&screen.orientation.lock) screen.orientation.lock('landscape').catch(()=>{}); }catch(e){}
+  const fitCanvas=()=>{const width=Math.min(2560,Math.max(960,Math.round(cv.getBoundingClientRect().width*(window.devicePixelRatio||1)/16)*16));cv.width=width;cv.height=width*9/16;};
+  fitCanvas();window.addEventListener('resize',fitCanvas);
   const plan=dfPlan(P);
   const ui={phase:'place',sel:null,cards:[...units,...(P.traps?['trap']:[])]};
   let st=dfCreate(P,place); ctx.imageSmoothingEnabled=false;
@@ -2280,7 +2355,7 @@ function dfOpen(P,done){
   const finish=()=>{ cancelAnimationFrame(raf); ui.phase='end'; bp.classList.add('hidden'); act.innerHTML=''; dfDraw(ctx,st,ui); const res=dfResult(st);
     top.innerHTML=`<b>새벽이 밝았다.</b> 쓰러뜨린 감염자 <b>${res.kills}</b> · 뚫고 들어온 놈 <b style="color:${res.leaks?'#ff7a6a':'#8fd47a'}">${res.leaks}</b>${res.broke?' · 바리케이드가 무너졌다':''}`;
     tip.innerHTML=''; btns.innerHTML='<button class="primary" id="dfDone">새벽을 맞는다 →</button>';
-    document.getElementById('dfDone').onclick=()=>{ M.classList.add('hidden'); cv.onpointerdown=null; window.removeEventListener('resize',checkRot); try{ screen.orientation.unlock(); }catch(e){} done(res); }; };
+    document.getElementById('dfDone').onclick=()=>{ M.classList.add('hidden'); cv.onpointerdown=null; window.removeEventListener('resize',fitCanvas); done(res); }; };
   const loop=(ts)=>{ if(!last) last=ts; let dt=Math.min(.1,(ts-last)/1000)*speed*(bossOn?.65:1); last=ts; acc+=dt;
     while(acc>=.05){ dfStep(st,.05); acc-=.05; }
     if(!bossOn && dfBoss(st)){ bossOn=true; log('🗿 땅이 울린다. 숲 사이로 집채만 한 거인이 걸어 나왔다. 기억을 잃은 자들이 뭉쳐 하나가 된 것 같은 괴물이다.','bad'); askBoss(); }
@@ -2387,32 +2462,32 @@ Object.assign(ARCS,{
   {d:'1945-01-30',lines:['유수프가 낡은 터번을 고쳐 매며 말했다. "나는 인도 펀자브에서 왔소. 1940년 프랑스 덩케르크에서 노새를 몰던 인도군 보급 부대였지. 영국군이 배를 타고 빠져나갈 때, 우리 중 많은 이가 남겨졌소."','"4년을 포로수용소에서 보냈소. 미군이 다가오자 경비병들이 달아났고, 나는 걸었소. 서쪽으로."'],note:'유수프의 덩케르크 이야기'},
   {d:'1945-02-05',lines:['"수용소에 인도 사람이 찾아온 적이 있소." 유수프가 말했다. "찬드라 보스라는 사람이 독일과 손잡고 인도 군단을 만든다고. 영국과 싸우면 인도가 독립한다고."','"적의 적이 친구는 아니오. 히틀러는 사람을 인종으로 줄 세우는 자요. 나는 거절했소."'],fx:{mo:2},note:'유수프는 독일의 인도 군단 제안을 거절했다'},
   {d:'1945-02-12',lines:['유수프가 누렇게 바랜 편지를 펼쳤다. 군데군데 검은 줄이 그어져 있다. "할아버지가 1915년에 보낸 편지요. 바로 이 벨기에, 이프르의 참호에서. 영국군 검열관이 지운 자리가 이렇게 많소."','"백만 명이 넘는 인도 사람이 영국을 위해 바다를 건넜소. 이기면 인도에 자치를 준다고 했으니까. 그런데 1919년에 돌아온 건 롤럿법, 그리고 암리차르에서 평화로운 집회에 쏟아진 총탄이었소."'],item:'censor',
-   quiz:{k:'ox',has:'윌슨의 민족 자결주의는 승전국의 식민지에도',ask:'유수프가 물었다. "열병은 새로 들은 것부터 지운다지. 그럼 이것도 기억하오? 1차 대전 뒤의 그 약속 말이오."',ok:'"맞소. 민족 자결은 패전국의 식민지에만 적용되었지. 우리는 승전국의 식민지였고."',no:'"아니오. 민족 자결은 패전국의 식민지에만 적용되었소. 승전국 영국의 식민지인 인도에는 오지 않았지."',fx:{kn:1}},note:'유수프 할아버지의 이프르 편지'},
+   quiz:{k:'ox',subject:/민족 자결/,has:'윌슨의 민족 자결주의는 승전국의 식민지에도',ask:'유수프가 물었다. "열병은 새로 들은 것부터 지운다지. 그럼 이것도 기억하오? 1차 대전 뒤의 그 약속 말이오."',ok:'"맞소. 민족 자결은 패전국의 식민지에만 적용되었지. 우리는 승전국의 식민지였고."',no:'"아니오. 민족 자결은 패전국의 식민지에만 적용되었소. 승전국 영국의 식민지인 인도에는 오지 않았지."',fx:{kn:1}},note:'유수프 할아버지의 이프르 편지'},
   {d:'1945-02-17',lines:['유수프가 터번 안쪽에서 낡은 은화 한 닢을 꺼냈다. "고조할아버지의 것이오. 동인도 회사의 군대에서 일하던 세포이였지."','"1857년, 영국 장교들이 우리 신앙을 업신여기는 탄약을 쓰라고 하자 세포이들이 들고일어났소. 농민도 왕족도 함께했지. 진압된 뒤 인도는 회사가 아니라 영국 왕의 땅이 되었소."'],topic:['세포이','인도','동인도 회사','벵골'],
-   quiz:{k:'mc',has:'1857년 영국 동인도 회사의 지배에 맞서',ask:'유수프가 은화를 손바닥에 올려놓고 물었다. "이 은화가 지켜본 그 항쟁, 이름을 기억하오?"',ok:'"그렇소. 그날을 기억해 주니 고맙소." 유수프가 보급병 시절 숨겨 둔 비상 꾸러미를 풀었다.',no:'"세포이의 항쟁이오. 우리 마을 사람들은 지금도 그날을 기억하지."',fx:{kn:1,sup:2,food:1},rw:'유수프의 비상 꾸러미 (물자 +2 · 식량 +1)'},note:'유수프에게 세포이의 항쟁 이야기를 들었다'},
+   quiz:{k:'mc',subject:/세포이/,has:'1857년 영국 동인도 회사의 지배에 맞서',ask:'유수프가 은화를 손바닥에 올려놓고 물었다. "이 은화가 지켜본 그 항쟁, 이름을 기억하오?"',ok:'"그렇소. 그날을 기억해 주니 고맙소." 유수프가 보급병 시절 숨겨 둔 비상 꾸러미를 풀었다.',no:'"세포이의 항쟁이오. 우리 마을 사람들은 지금도 그날을 기억하지."',fx:{kn:1,sup:2,food:1},rw:'유수프의 비상 꾸러미 (물자 +2 · 식량 +1)'},note:'유수프에게 세포이의 항쟁 이야기를 들었다'},
   {d:'1945-02-22',lines:['유수프가 자기 몫의 빵을 반으로 잘라 따로 싸 두었다. "1943년 벵골에서 수백만 명이 굶어 죽었소. 쌀은 전쟁터로 실려 갔지. 그 뒤로 나는 먹을 걸 다 먹지 못하오."'],
    choices:[
     {label:'"그 빵은 당신이 먹어요. 우리가 같이 구해 올게요."',bond:{yusuf:2},fx:{mo:2},res:'유수프가 오래 당신을 바라보다가 빵을 입에 넣었다.',note:'유수프에게 빵을 먹으라고 했다'},
     {label:'모아 둔 빵을 비상식량으로 쓴다',fx:{food:1},bond:{yusuf:-1},res:'유수프는 고개를 끄덕였지만, 그날 밤 아무것도 먹지 않았다.',note:'유수프의 빵을 비상식량으로 썼다'}]},
   {d:'1945-03-10',lines:['"1930년, 간디가 바다를 향해 걷기 시작했소. 영국이 소금에 매긴 세금에 맞서서. 우리 마을 청년들도 따라 걸었지. 총 없이."','유수프가 눈 위에 소금 한 줌을 뿌렸다. "총이 없어도 버틸 수 있다는 걸, 그때 배웠소."'],fx:{mo:3},
-   quiz:{k:'mc',has:'간디가 영국의 소금법에 저항하여',ask:'유수프가 물었다. "우리 마을 청년들이 바다까지 걸었던 그 운동, 이름이 뭐였는지 기억하오?"',ok:'"그렇소. 총 한 자루 없이 제국을 흔들었지."',no:'"소금 행진이오. 총 한 자루 없이 제국을 흔들었지."',fx:{kn:1}},note:'유수프에게 소금 행진 이야기를 들었다'},
+   quiz:{k:'mc',subject:/간디|소금 행진/,has:'간디가 영국의 소금법에 저항하여',ask:'유수프가 물었다. "우리 마을 청년들이 바다까지 걸었던 그 운동, 이름이 뭐였는지 기억하오?"',ok:'"그렇소. 총 한 자루 없이 제국을 흔들었지."',no:'"소금 행진이오. 총 한 자루 없이 제국을 흔들었지."',fx:{kn:1}},note:'유수프에게 소금 행진 이야기를 들었다'},
   {d:'1945-03-20',lines:['라디오에서 인도 소식이 짧게 흘러나왔다. 유수프가 귀를 기울였다. "1905년, 영국은 벵골을 둘로 나눴소. 힌두교도와 이슬람교도를 갈라놓으려고. 그때부터 인도 국민 회의가 앞장서 영국 상품을 거부했지."','"나눠서 다스리는 것. 제국이 가장 잘하는 일이오."'],topic:['인도 국민 회의','벵골','스와데시','간디','인도'],
-   quiz:{k:'mc',has:'인도 국민 회의가 1905년 이후 반영 운동에',ask:'유수프가 물었다. "인도 국민 회의가 그때부터 영국에 맞서게 된 까닭, 기억하오?"',ok:'"맞소. 갈라놓으려던 법이 오히려 우리를 하나로 묶었지." 유수프가 감춰 둔 쌀 한 줌을 꺼내 수프에 넣었다.',no:'"벵골 분할령 때문이었소. 갈라놓으려던 법이 오히려 우리를 하나로 묶었지."',fx:{kn:1,food:2},rw:'유수프의 쌀 한 줌 (식량 +2)'},note:'유수프에게 벵골 분할령 이야기를 들었다'},
+   quiz:{k:'mc',subject:/인도 국민 회의|벵골/,has:'인도 국민 회의가 1905년 이후 반영 운동에',ask:'유수프가 물었다. "인도 국민 회의가 그때부터 영국에 맞서게 된 까닭, 기억하오?"',ok:'"맞소. 갈라놓으려던 법이 오히려 우리를 하나로 묶었지." 유수프가 감춰 둔 쌀 한 줌을 꺼내 수프에 넣었다.',no:'"벵골 분할령 때문이었소. 갈라놓으려던 법이 오히려 우리를 하나로 묶었지."',fx:{kn:1,food:2},rw:'유수프의 쌀 한 줌 (식량 +2)'},note:'유수프에게 벵골 분할령 이야기를 들었다'},
   {d:'1945-03-28',lines:['숲에서 쓰러진 시신 하나를 찾았다. 독일 군복, 그런데 팔에 호랑이 무늬 표식이 달려 있다. 유수프가 무릎을 꿇었다. "인도 군단이오. 나처럼 포로였다가 다른 쪽을 고른 사람."'],
    choices:[
     {label:'함께 묻어 준다',sub:'반나절이 걸린다',bond:{yusuf:2},fx:{mo:-2},res:'유수프가 무덤 앞에서 펀자브 말로 오래 기도했다. "그도 고향에 가고 싶었을 거요."',note:'인도 군단 병사를 묻어 주었다'},
     {label:'"적군이에요. 그냥 둬요."',bond:{yusuf:-2},res:'유수프는 아무 대답도 하지 않고, 혼자 언 땅을 팠다.',note:'인도 군단 병사를 외면했다'}]},
   {d:'1945-04-14',lines:['루스벨트의 부고를 들은 유수프가 말했다. "1941년, 루스벨트와 처칠이 대서양 한가운데서 약속했소. 모든 민족이 스스로 정부를 고를 권리를 존중하겠다고."','"그런데 처칠은 곧바로 그게 인도 얘기는 아니라고 했지."'],
-   quiz:{k:'mc',has:'1941년 영국의 처칠과 미국의 루스벨트가 발표해',ask:'유수프가 물었다. "그 약속의 이름, 기억하오?"',ok:'"그렇소. 그 헌장이 나중에 국제 연합의 바탕이 된다더군. 이번에는 약속이 지켜지길."',no:'"대서양 헌장이오. 전후 국제 평화 기구의 바탕이 된 선언이지."',fx:{kn:1}},note:'유수프와 대서양 헌장 이야기를 나눴다'},
+   quiz:{k:'mc',subject:/대서양 헌장/,has:'1941년 영국의 처칠과 미국의 루스벨트가 발표해',ask:'유수프가 물었다. "그 약속의 이름, 기억하오?"',ok:'"그렇소. 그 헌장이 나중에 국제 연합의 바탕이 된다더군. 이번에는 약속이 지켜지길."',no:'"대서양 헌장이오. 전후 국제 평화 기구의 바탕이 된 선언이지."',fx:{kn:1}},note:'유수프와 대서양 헌장 이야기를 나눴다'},
   {d:'1945-05-06',lines:['전쟁이 끝나 간다는 소식에 유수프가 터번을 새로 감았다. "1차 대전 때 우리는 약속을 기다렸소. 이번에는 기다리지 않을 거요. 우리 손으로 받아 낼 거요."'],fx:{mo:4},note:'유수프는 인도의 독립을 이야기했다'},
  ],
  ibra:[
   {d:'1945-01-30',lines:['붉은 모자를 쓴 사내가 총을 내려놓았다. "이브라히마 은디아예. 세네갈 저격병이오. 프랑스 사람들이 그렇게 부르지. 실은 세네갈, 말리, 기니… 서아프리카 곳곳에서 온 사람들이오."','"1940년 6월에 포로가 되었소. 독일군은 흑인 포로를 따로 골라냈지. 같이 잡힌 동료 몇은…" 그는 말을 끝맺지 않았다.'],note:'이브라히마는 1940년에 포로가 되었다'},
   {d:'1945-02-03',lines:['"프랑스 땅의 포로수용소에서 도망쳐 보주 산골의 레지스탕스에 들어갔소. 거기엔 나 같은 아프리카 출신 대장도 있었지."','이브라히마가 종탑을 올려다보았다. "저기라면 숲 끝까지 보이겠군. 오늘부터 내가 밤을 지키겠소."'],fx:{def:1},note:'이브라히마가 종탑 저격을 맡았다'},
   {d:'1945-02-10',lines:['"할아버지는 1918년에 바다를 건넜소. 세네갈 출신 국회 의원 블레즈 디아뉴가 마을마다 다니며 병사를 모았지. 프랑스를 위해 싸우면 프랑스 시민이 될 수 있다고."','"수만 명이 갔소. 돌아온 사람은 훈장 하나와 기침병을 얻었지."'],
-   quiz:{k:'mc',has:'나라의 모든 인적·물적 자원을 동원하여',ask:'이브라히마가 물었다. "식민지 사람까지 끌어다 싸운 그 전쟁을 뭐라고 부르오? 기억하오?"',ok:'"그렇소. 그 전쟁은 공장의 여자들과 바다 건너 식민지 사람들까지 모두 끌어냈지."',no:'"총력전이오. 나라의 모든 사람과 물자, 식민지까지 동원한 전쟁."',fx:{kn:1}},note:'이브라히마 할아버지의 1차 대전 이야기'},
+   quiz:{k:'mc',subject:/총력전/,has:'나라의 모든 인적·물적 자원을 동원하여',ask:'이브라히마가 물었다. "식민지 사람까지 끌어다 싸운 그 전쟁을 뭐라고 부르오? 기억하오?"',ok:'"그렇소. 그 전쟁은 공장의 여자들과 바다 건너 식민지 사람들까지 모두 끌어냈지."',no:'"총력전이오. 나라의 모든 사람과 물자, 식민지까지 동원한 전쟁."',fx:{kn:1}},note:'이브라히마 할아버지의 1차 대전 이야기'},
   {d:'1945-02-20',lines:['이브라히마가 레온의 지도 위에 손가락으로 선을 그었다. 자로 잰 듯 곧은 선들이었다. "1884년 베를린에서 유럽 사람들이 아프리카 지도를 펴 놓고 이렇게 선을 그었소. 우리 할머니 마을은 그 선 하나로 둘로 나뉘었지."'],
-   quiz:{k:'mc',has:'아프리카 분할 속에서도 독립을 유지한',ask:'"그 선을 피해 간 나라도 있었소. 어디였는지 아오?"',ok:'"맞소. 아프리카 전체에서 둘뿐이었지."',no:'"에티오피아와 라이베리아였소. 아프리카 전체에서 단 둘."',fx:{kn:1}},note:'이브라히마와 아프리카 분할 이야기를 나눴다'},
+   quiz:{k:'mc',subject:/에티오피아/,has:'아프리카 분할 속에서도 독립을 유지한',ask:'"그 선을 피해 간 나라도 있었소. 어디였는지 아오?"',ok:'"맞소. 아프리카 전체에서 둘뿐이었지."',no:'"에티오피아와 라이베리아였소. 아프리카 전체에서 단 둘."',fx:{kn:1}},note:'이브라히마와 아프리카 분할 이야기를 나눴다'},
   {d:'1945-03-02',lines:['"작년 가을, 겨울이 온다며 프랑스군은 우리 2만 명을 전선에서 뺐소. 그 자리를 하얀 얼굴의 프랑스 청년들로 채웠지." 이브라히마가 낡은 신문 사진을 보여 주었다. 파리 해방 행진. "이 사진에 우리는 없소."'],
    choices:[
     {label:'"그 사진에 당신들도 있어야 했어요."',bond:{ibra:2},fx:{mo:2},res:'이브라히마가 사진을 접어 가슴 주머니에 넣었다. "기억해 주는 사람이 하나는 있군."',note:'이브라히마에게 그 사진에 있어야 했다고 말했다'},
@@ -2423,12 +2498,12 @@ Object.assign(ARCS,{
     {label:'혼자 있게 둔다',bond:{ibra:-1},res:'이브라히마는 그날 밤 종탑에서 내려오지 않았다.',note:'이브라히마가 종탑에서 밤을 새웠다'}]},
   {d:'1945-04-16',lines:['이브라히마가 당신에게 소총 쥐는 법을 다시 가르쳤다. "숨을 반만 내쉬고, 멈추시오. 놈들이 아니라 그 뒤의 숲을 보시오."'],fx:{def:2},note:'이브라히마에게 사격을 배웠다'},
   {d:'1945-05-07',lines:['"프랑스는 자유를 되찾았소." 이브라히마가 붉은 모자를 벗어 손에 쥐었다. "언젠가 우리도 우리 자유를 되찾을 거요. 남의 깃발 아래가 아니라."'],fx:{mo:4},
-   quiz:{k:'ox',has:'범아프리카 운동은 아프리카인의 연대와',ask:'"파리에서 아프리카 사람들이 모여 함께 외친 운동이 있었소. 이 말이 맞는지 판단해 보시오."',ok:'"맞소. 선 하나로 갈라 놓은 대륙을, 우리는 다시 잇고 싶었소."',no:'"아니, 맞는 말이오. 범아프리카 운동은 아프리카인의 연대와 독립을 꿈꿨지."',fx:{kn:1}},note:'이브라히마는 아프리카의 자유를 이야기했다'},
+   quiz:{k:'ox',subject:/범아프리카/,has:'범아프리카 운동은 아프리카인의 연대와',ask:'"파리에서 아프리카 사람들이 모여 함께 외친 운동이 있었소. 이 말이 맞는지 판단해 보시오."',ok:'"맞소. 선 하나로 갈라 놓은 대륙을, 우리는 다시 잇고 싶었소."',no:'"아니, 맞는 말이오. 범아프리카 운동은 아프리카인의 연대와 독립을 꿈꿨지."',fx:{kn:1}},note:'이브라히마는 아프리카의 자유를 이야기했다'},
  ],
  zofia:[
   {d:'1945-01-30',lines:['조피아가 외투 안쪽에 꿰매 붙인 노란 천 조각을 보여 주었다. 보라색 글자 하나. "P". "폴란드 사람이라는 표시예요. 독일 농장과 공장에서 일하는 폴란드 사람은 모두 이걸 달아야 했어요."','"1941년, 열일곱 살에 바르샤바 거리에서 끌려왔어요. 아헨 근처 농장에서 일하다가, 작년 가을 미군이 오던 날 도망쳤어요."'],item:'pbadge',note:'조피아의 \'P\' 표식'},
   {d:'1945-02-02',lines:['"1939년 9월 1일, 독일군이 국경을 넘었어요. 그리고 9월 17일, 동쪽에서 소련군이 들어왔죠. 두 나라가 미리 약속해 둔 거예요."'],
-   quiz:{k:'mc',has:'1939년 독일이 폴란드를 침공하기 직전',ask:'조피아가 물었다. "열병에 걸리면 이런 것부터 잊는대요. 독일이 폴란드에 들어오기 직전에 몰래 손잡은 나라, 기억해요?"',ok:'"맞아요. 그 약속 하나로 우리나라가 둘로 찢겼어요."',no:'"소련이에요. 독·소 불가침 조약. 그 약속 하나로 폴란드가 둘로 찢겼어요."',fx:{kn:1}},note:'조피아에게 1939년 9월 이야기를 들었다'},
+   quiz:{k:'mc',subject:/독.?소 불가침|독일.*폴란드/,has:'1939년 독일이 폴란드를 침공하기 직전',ask:'조피아가 물었다. "열병에 걸리면 이런 것부터 잊는대요. 독일이 폴란드에 들어오기 직전에 몰래 손잡은 나라, 기억해요?"',ok:'"맞아요. 그 약속 하나로 우리나라가 둘로 찢겼어요."',no:'"소련이에요. 독·소 불가침 조약. 그 약속 하나로 폴란드가 둘로 찢겼어요."',fx:{kn:1}},note:'조피아에게 1939년 9월 이야기를 들었다'},
   {d:'1945-02-08',lines:['조피아가 녹슨 못 한 줌과 망치를 들고 왔다. "독일에선 서부 방벽 공사장에도 끌려갔어요. 독일 놈들 벽을 쌓던 손으로, 이제 우리 벽을 쌓을게요."'],fx:{def:2},note:'조피아가 바리케이드를 보강했다'},
   {d:'1945-02-14',lines:['라디오에서 얄타 회담 소식이 흘러나오자 조피아가 굳어 버렸다. "폴란드 국경을 서쪽으로 옮긴대요. 동쪽 땅은 소련이 갖고요. 자유로운 선거를 약속했다지만… 우리나라를 우리 없이 정했어요."'],
    choices:[
@@ -2439,19 +2514,19 @@ Object.assign(ARCS,{
     {label:'무전으로 적십자에 야누시의 소식을 묻는다',sub:'물자 1',fx:{sup:-1},bond:{zofia:2},flag:'janusz',res:'답이 오려면 시간이 걸린다고 했다. 조피아는 그날부터 매일 무전기 앞을 서성였다.',note:'야누시의 소식을 적십자에 물었다'},
     {label:'"지금은 기다릴 수밖에 없어요."',bond:{zofia:-1},res:'조피아는 오빠의 이름을 눈 위에 썼다가 지웠다.',note:'야누시의 소식을 묻지 못했다'}]},
   {d:'1945-03-18',lines:()=>[ok('leon')?'조피아가 레온 곁에 앉았다. "오시비엥침, 독일 사람들이 아우슈비츠라고 부르는 곳은 우리 할머니 마을 근처예요. 수용소가 있는 줄은 알았지만, 그게 그런 곳인 줄은…" 레온은 아무 말 없이 그녀의 손을 잡았다.':'조피아가 라디오를 끄며 말했다. "오시비엥침, 독일 사람들이 아우슈비츠라고 부르는 곳은 우리 할머니 마을 근처예요. 수용소가 있는 줄은 알았지만, 그게 그런 곳인 줄은…"'],
-   quiz:{k:'mc',has:'나치 독일이 수많은 유대인을 계획적으로 학살한',ask:'조피아가 말했다. "이건 잊으면 안 돼요. 절대로. 그 일을 뭐라고 부르는지 말해 봐요."',ok:'"네. 그 이름을 기억해야 해요. 열병이 무엇을 지우든."',no:'"홀로코스트예요. 이 이름만은 잊으면 안 돼요."',fx:{kn:1}},note:'조피아와 아우슈비츠 이야기를 나눴다'},
+   quiz:{k:'mc',subject:/홀로코스트|아우슈비츠/,has:'나치 독일이 수많은 유대인을 계획적으로 학살한',ask:'조피아가 말했다. "이건 잊으면 안 돼요. 절대로. 그 일을 뭐라고 부르는지 말해 봐요."',ok:'"네. 그 이름을 기억해야 해요. 열병이 무엇을 지우든."',no:'"홀로코스트예요. 이 이름만은 잊으면 안 돼요."',fx:{kn:1}},note:'조피아와 아우슈비츠 이야기를 나눴다'},
   {d:'1945-04-24',lines:()=>['"소련군이 베를린에 들어갔대요." 조피아는 기뻐하면서도 웃지 않았다. "바르샤바도 소련군이 해방했죠. 그런데 해방이 끝이 아닐 것 같아요."'].concat(S.flags.janusz?['그날 저녁 무전기에서 짧은 소식이 왔다. "야누시 코발스키, 독일 포로수용소에서 살아 있음." 조피아는 무전기를 끌어안고 울었다.']:[]),fx:()=>S.flags.janusz?{mo:10}:{mo:1},note:()=>S.flags.janusz?'조피아의 오빠 야누시가 살아 있다':'조피아는 해방 뒤를 걱정했다'},
  ],
  enzo:[
   {d:'1945-01-30',lines:['엔초가 곡괭이를 어깨에 걸쳤다. "리에주 탄광에서 스무 해를 일했소. 이탈리아 북쪽 피에몬테에서 왔지. 1922년, 검은 셔츠단이 우리 노동조합 사무실을 불태운 해에."'],note:'엔초는 파시즘을 피해 벨기에로 왔다'},
   {d:'1945-02-04',lines:['"그해 10월, 무솔리니가 검은 셔츠단을 이끌고 로마로 행진했소. 국왕은 그에게 정부를 맡겼지. 질서를 지켜 준다면서."'],
-   quiz:{k:'mc',has:'1922년 파시스트당을 이끌고 집권해',ask:'엔초가 물었다. "열병은 최근에 들은 것부터 지운다지? 방금 내가 말한 그 사람, 이름이 뭐였소?"',ok:'"그렇소. 사람들은 그게 질서인 줄 알았지. 그게 파시즘이오."',no:'"무솔리니요. 사람들은 그게 질서인 줄 알았지."',fx:{kn:1}},note:'엔초에게 로마 진군 이야기를 들었다'},
+   quiz:{k:'mc',subject:/무솔리니|파시스트당/,has:'1922년 파시스트당을 이끌고 집권해',ask:'엔초가 물었다. "열병은 최근에 들은 것부터 지운다지? 방금 내가 말한 그 사람, 이름이 뭐였소?"',ok:'"그렇소. 사람들은 그게 질서인 줄 알았지. 그게 파시즘이오."',no:'"무솔리니요. 사람들은 그게 질서인 줄 알았지."',fx:{kn:1}},note:'엔초에게 로마 진군 이야기를 들었다'},
   {d:'1945-02-11',lines:['엔초가 지하 창고에서 낡은 상자를 끌고 나왔다. 탄광에서 쓰던 다이너마이트다. "갱도에선 버팀목 하나 잘못 대면 다 묻히오. 폭약도 마찬가지고."'],
    choices:[
     {label:'"덫에 같이 써 봐요."',sub:'물자 1',fx:{sup:-1},bond:{enzo:2},flag:'enzoTrap',res:'엔초가 덫 아래에 폭약을 묻는 법을 보여 주었다. 이제 덫이 훨씬 무서워졌다.',note:'엔초와 폭약 덫을 만들었다'},
     {label:'"위험해요. 묻어 둬요."',bond:{enzo:-1},res:'"겁이 많군." 엔초가 상자를 도로 밀어 넣었다.',note:'엔초의 폭약을 묻어 두었다'}]},
   {d:'1945-02-21',lines:['엔초가 외투 안쪽에서 빛바랜 배지를 꺼냈다. 붉은 별 세 개. "1936년 에스파냐로 건너갔소. 국제 여단의 가리발디 대대. 파시즘을 이길 수 있는 곳이라 믿었지."','"1937년 4월, 게르니카라는 마을에 독일 비행기가 폭탄을 퍼부었소. 장이 서는 날이었지."'],item:'garibaldi',
-   quiz:{k:'cho',has:'피카소가 그린 폭격당한 도시',ask:'엔초가 말했다. "그 마을 이름은 잊지 마시오."',ok:'"그렇소. 피카소가 그 마을을 그림으로 남겼지."',no:'"게르니카요. 피카소가 그 마을을 그림으로 남겼지."',fx:{kn:1}},note:'엔초의 에스파냐 내전 이야기'},
+   quiz:{k:'cho',subject:/게르니카|에스파냐 내전/,has:'피카소가 그린 폭격당한 도시',ask:'엔초가 말했다. "그 마을 이름은 잊지 마시오."',ok:'"그렇소. 피카소가 그 마을을 그림으로 남겼지."',no:'"게르니카요. 피카소가 그 마을을 그림으로 남겼지."',fx:{kn:1}},note:'엔초의 에스파냐 내전 이야기'},
   {d:'1945-03-05',lines:['"1940년 이탈리아가 독일 편에 서자, 여기 벨기에 사람들은 우리를 적처럼 봤소." 엔초가 쓴웃음을 지었다. "나는 무솔리니가 싫어서 떠나온 사람인데."'],
    choices:[
     {label:'"당신은 우리 편이에요."',bond:{enzo:2},fx:{mo:2},res:'엔초가 만돌린을 꺼내 두 줄로 노래를 연주했다. 꽤 그럴듯했다.',note:'엔초에게 우리 편이라고 말했다'},
@@ -2462,7 +2537,7 @@ Object.assign(ARCS,{
     {label:'"무너질 수 있어요. 가지 말아요."',fx:{mo:-1},res:'엔초는 등잔을 내려놓았다. "살아 있는 게 우선이긴 하지."',note:'엔초를 붙잡았다'}]},
   {d:'1945-04-26',lines:['"이탈리아 북부에서 파르티잔들이 들고일어났대! 밀라노, 토리노, 제노바…" 엔초가 라디오를 껴안았다. "독일군이 쫓겨나고 있소. 이탈리아 사람들 손으로!"'],fx:{mo:6},note:'이탈리아 북부가 해방되었다'},
   {d:'1945-04-30',lines:['무솔리니가 파르티잔에게 붙잡혀 처형되었다는 소식에 엔초는 오래 말이 없었다. "스물세 해요. 그자가 로마로 행진한 날부터. 내 인생의 절반을 그 이름에서 도망치며 살았소."'],
-   quiz:{k:'ox',has:'전체주의는 개인보다 국가의 이익을',ask:'엔초가 말했다. "그자가 세운 체제가 뭐였는지, 한 문장으로 말해 보겠소. 맞는지 판단해 보시오."',ok:'"그렇소. 그래서 개인은 아무것도 아니었지."',no:'"아니, 맞는 말이오. 그 체제에선 개인보다 국가가 먼저였소."',fx:{kn:1}},note:'엔초와 무솔리니의 최후를 들었다'},
+   quiz:{k:'ox',subject:/전체주의/,has:'전체주의는 개인보다 국가의 이익을',ask:'엔초가 말했다. "그자가 세운 체제가 뭐였는지, 한 문장으로 말해 보겠소. 맞는지 판단해 보시오."',ok:'"그렇소. 그래서 개인은 아무것도 아니었지."',no:'"아니, 맞는 말이오. 그 체제에선 개인보다 국가가 먼저였소."',fx:{kn:1}},note:'엔초와 무솔리니의 최후를 들었다'},
  ],
 });
 Object.assign(EPILOG_EXTRA,{
