@@ -93,7 +93,7 @@ th{color:var(--dim);font-weight:400}
 #vig.on{opacity:1} #vig.pulse{animation:pulse 1.6s infinite}
 @keyframes pulse{50%{opacity:.55}}
 #snow{position:fixed;inset:0;pointer-events:none;z-index:4}
-.hbtns{display:flex;gap:6px;margin-top:4px;justify-content:flex-end}
+.hbtns{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;justify-content:flex-end}
 .hbtn{padding:4px 9px;font-size:12px;border-radius:14px;text-align:center}
 .beatHead{font-family:'Noto Serif KR',serif;font-weight:700;color:#e8c9a0;border-top:1px dashed var(--line);padding-top:10px}
 .beat{font-family:'Noto Serif KR',serif;background:#1d1a16;border-left:3px solid #e8c9a0;padding:6px 12px;border-radius:4px}
@@ -109,6 +109,7 @@ th{color:var(--dim);font-weight:400}
 .item{background:#18161d;border-left:3px solid #b9a3e0;padding:8px 12px;border-radius:4px;font-size:14px}
 #dfModal{position:fixed;inset:0;background:#07090c;z-index:12;display:flex;align-items:center;justify-content:center}
 #dfModal.hidden{display:none}
+#battleAudio{position:absolute;top:14%;left:1%;z-index:2;padding:3px 6px;background:#18161de8;border-radius:5px;color:#f4e7cc;font-size:12px}#battleAudio summary{cursor:pointer}#battleAudio button{margin:3px}
 #dfStage{position:relative;width:min(100vw,calc(100vh*16/9),1280px);aspect-ratio:16/9}
 #dfCanvas{width:100%;height:100%;display:block;image-rendering:auto;touch-action:none}
 #dfTop{position:absolute;left:33%;right:24%;top:1.5%;font-size:clamp(10px,1.55vw,16px);line-height:1.45;color:#fff;text-shadow:0 0 3px #000,0 0 3px #000;text-align:center}
@@ -147,31 +148,39 @@ th{color:var(--dim);font-weight:400}
  #dfStage>*{position:static}
  #dfCanvas{order:2;width:100%;height:auto;aspect-ratio:16/9;flex:none}
  #dfTop,#dfTip,#dfAct,#dfBtns,#dfBoss{width:auto;margin:0 10px;font-size:14px}
+ #battleAudio{order:7;align-self:flex-end;margin:0 10px}
  #dfTop{order:1;text-align:left} #dfTip{order:5} #dfBoss{order:3}
  #dfBtns{order:6;flex-direction:row;flex-wrap:wrap} #dfAct{order:4}
  #dfBtns button,#dfAct button{flex:1;min-height:42px;font-size:14px;padding:4px 8px;word-break:keep-all}
 }
 .schoolMap{display:block;position:relative;width:min(100%,360px);height:94px;margin:8px 0;background:#e5d7b4;color:#302b22;border:1px solid #917f59;border-radius:4px}.schoolMap i{position:absolute;font:600 13px sans-serif}.schoolMap i:nth-child(1){left:9%;top:30%}.schoolMap i:nth-child(2){left:44%;top:32%}.schoolMap i:nth-child(3){left:73%;top:24%}.schoolMap i:nth-child(4){left:6%;top:66%}#historyReflection{width:95%;font:inherit}.share summary,.jl summary{cursor:pointer;padding:6px 0}
+#choices.traceMap{grid-template-columns:1fr .8fr 1fr;grid-template-rows:auto auto;padding:14px 8px;background:#e5d7b4;color:#342a1b;border-radius:6px;align-items:center}
+.traceMap:before{content:"독일";grid-area:1/2;text-align:center}.traceMap:after{content:"프랑스";grid-area:2/1;text-align:center}
+.traceMap .pin-poland{grid-area:1/3}.traceMap .pin-bastogne{grid-area:1/1}#choices.traceMap button{padding:9px 5px;text-align:center;line-height:1.35}#choices.traceMap .sub{font-size:12px}
 </style>
 </head>
 <body>
 <div id="vig"></div><canvas id="snow"></canvas>
-<div id="dfModal" class="hidden"><div id="dfStage"><canvas id="dfCanvas" width="960" height="540"></canvas><div id="dfTop"></div><div id="dfBtns"></div><div id="dfTip"></div><div id="dfAct"></div><div id="dfBoss" class="hidden"></div></div>
+<div id="dfModal" class="hidden"><div id="dfStage"><canvas id="dfCanvas" width="960" height="540"></canvas><div id="dfTop"></div><div id="dfBtns"></div><div id="dfTip"></div><div id="dfAct"></div><div id="dfBoss" class="hidden"></div><details id="battleAudio"><summary>소리 설정</summary><button class="hbtn" id="battleMusic" aria-pressed="false">♫ 음악 끔</button><button class="hbtn" id="battleSnd" aria-pressed="false">효과음 끔</button></details></div>
 </div>
 <div id="recModal" class="hidden"><div id="recCard"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b class="gold">기록</b><button class="hbtn" id="recClose">닫기 ✕</button></div><div id="recBody" style="display:flex;flex-direction:column;min-height:0;flex:1"></div></div></div>
 <div class="wrap">
   <header>
     <h1>붉은 눈(雪) <small>1945년 겨울, 벨기에 아르덴 — 전쟁과 종말 사이의 생존 기록</small></h1>
     <div class="datebox"><div class="d" id="dateLabel"></div><div class="n" id="dayLabel"></div>
-      <div class="hbtns"><button class="hbtn hidden" id="btnRec">📖 기록</button><button class="hbtn" id="btnFx">✨ 연출 켬</button><button class="hbtn" id="btnSnd">🔇 소리 끔</button></div></div>
+      <div class="hbtns"><button class="hbtn hidden" id="btnRec">📖 기록</button><button class="hbtn" id="btnFx">✨ 연출 켬</button><button class="hbtn" id="btnMusic" aria-pressed="false">♫ 음악 끔</button><button class="hbtn" id="btnSnd" aria-pressed="false">효과음 끔</button></div></div>
   </header>
 
   <section id="startScreen" class="screen">
     <h2>1945년 1월, 벨기에 아르덴의 작은 마을 생트마리</h2>
-    <p class="story">당신은 독일 점령기 내내 숲길을 오가던 <b class="gold">벨기에 레지스탕스의 연락원</b>이다. 9월에 브뤼셀이 해방되고 모두가 전쟁이 곧 끝나리라 믿었다. 그런데 12월 16일 새벽, 독일군이 눈 덮인 아르덴 숲을 뚫고 마지막 대공세를 시작했다. 한 달 넘는 전투 끝에 1월 25일, 독일군은 처음 자리로 밀려났고 전선은 동쪽으로 떠났다.</p>
-    <p class="story">그러나 대공세가 시작된 그 밤, 하늘이 핏빛으로 물들었다. 붉은 빛은 사흘을 타올랐고, 그 아래로 내린 눈은 분홍빛이었다. 열병이 퍼졌고, 죽은 자들이 일어났다. 군대는 떠났지만 숲에는 놈들과 낙오자들이 남았다. 바스토뉴 외곽의 오래된 수도원 학교에, 당신과 네 명의 생존자가 있다.</p>
-    <p class="story">전쟁은 아직 끝나지 않았다. 그리고 세상은 끝나 가고 있다. <b>살아남아라. 하루라도 더.</b></p>
-    <div class="rules">
+    <p class="story">라디오가 지직거린다. 바스토뉴 외곽, 학교에 남은 사람은 당신과 동료 넷. 분홍빛 눈 위로 발자국이 정문까지 이어진다.</p>
+    <p><b>낮에 두 번 행동하고, 동료들과 첫날밤을 넘기세요.</b></p>
+    <label for="nameInput">생존자 닉네임 또는 교사가 배정한 고유 코드 (공용 랭킹에 표시됩니다)</label>
+    <input id="nameInput" maxlength="20" placeholder="예: 아르덴17 / R17">
+    <button class="primary" id="startBtn">1945년 1월 29일, 생존을 시작한다</button>
+    <button class="hidden" id="continueBtn" style="margin-top:8px">💾 저장된 도전 이어하기</button>
+    <p class="sys" id="continueInfo" style="font-size:12px"></p>
+    <details class="rules"><summary>생존 수첩 · 게임 규칙</summary>
       <p><b>열병의 규칙</b> — 감염의 첫 증상은 <b>기억이 지워지는 것</b>이다. 최근에 배운 것부터 잊고, 마지막엔 자기 이름도 잊은 채 일어난다. 그래서 살아남은 사람들은 서로에게 기억을 묻는다. 감염자는 <b>빛과 소리</b>를 따라 몰려들고, <b>햇빛</b>을 피해 숨는다.</p>
       <p><b>역사가 곧 암호다</b> — 입구에서 숨진 영국 특수 작전국(SOE) 요원의 수첩은 보급 은닉처를 세계사 문제로 감춰 두었다. 연합군 사령부는 미군으로 위장해 침투한 독일군과 감염자를 가려내려고 확인 질문을 던진다. 정답은 보급과 <b>전술</b>이 되고, 오답은 대가를 치른다.</p>
       <p><b>하루의 흐름</b> — 아침 라디오 → 낮에 행동 2가지(오전·오후) → 해 질 녘 밤 대비 → 감염자 습격. 날짜는 실제 1945년 달력을 따라 하루씩 흐르고, 실제 역사 소식이 라디오로 들려온다.</p>
@@ -188,14 +197,9 @@ th{color:var(--dim);font-weight:400}
        <p><b>하루 두 번</b> — 낮에는 오전·오후에 한 가지씩, 두 번 행동할 수 있다. <b>같은 일은 하루에 한 번만</b> 할 수 있고, 아침마다 동료가 📌 부탁을 한다. 들어주면 보상과 신뢰를 얻는다.</p>
       <p><b>지식</b> — 역사 문제를 맞힐 때마다 <b>+1</b> 쌓인다(사령부 교신·동료 이야기·사료 확인 문제는 보너스 +1). 누적 획득 지식은 랭킹에 남으며, 지금 소비할 수 있는 지식은 최대 20까지 보관한다. 쌓인 만큼 배움 단계가 올라 공사·탐색·물자 효율이 좋아지고(참호전의 교훈 → 총력전의 배급 → 레지스탕스의 길 → 전시 물자 관리 → 대서양 헌장의 연대), 문제를 풀 때 지식 1로 도움을 받을 수 있다.</p>
       <p><b>버티기</b> — 겨울에는 땔감(물자)이 없으면 얼어붙고, 날이 갈수록 탐색할 곳은 바닥나고 공포는 깊어진다. <b>은신은 반복할수록 들킬 위험이 커지고, 쓰지 않은 날에는 그대로 유지된다.</b> 체력 0 또는 사기 0이 되면 끝. 랭킹은 <b>버틴 날 수</b>를 최우선으로 매긴다.</p>
-    </div>
+    </details>
     <div id="champBox"></div>
     <div id="achBox" class="rules"></div>
-    <label for="nameInput">생존자 닉네임 또는 교사가 배정한 고유 코드 (공용 랭킹에 표시됩니다)</label>
-    <input id="nameInput" maxlength="20" placeholder="예: 아르덴17 / R17">
-    <button class="primary" id="startBtn">1945년 1월 29일, 생존을 시작한다</button>
-    <button class="hidden" id="continueBtn" style="margin-top:8px">💾 저장된 도전 이어하기</button>
-    <p class="sys" id="continueInfo" style="font-size:12px"></p>
     <h3 style="margin-top:24px">생존 랭킹 <span class="sys" id="rankSrc"></span></h3><p class="sys" style="font-size:12px">정렬: 생존 일수 → 누적 획득 지식 → 남은 식량 → 남은 물자 (모두 높은 순)</p>
     <div id="rankBox" class="rules">아직 기록이 없습니다.</div>
   </section>
@@ -593,7 +597,7 @@ const CALENDAR = {
  '1944-12-25':{t:'🕯️ 크리스마스',m:'포성이 잠시 멎었다. 마리가 남은 밀가루로 작은 빵을 구웠고, 레온은 처음으로 노래를 불렀다. 창밖의 그림자들도 오늘만큼은 조용하다.',fx:{mo:8}},
  '1944-12-27':{t:'📻 미군 무전',m:'어제(12월 26일) 패튼 장군의 제3군 기갑 부대가 남쪽에서 포위망을 뚫고 바스토뉴에 닿았다.',fx:{mo:4}},
  '1945-01-01':{t:'📻 BBC 런던 방송',m:'1945년 새해. 진행자의 목소리가 떨린다. "올해는 전쟁이 끝나는 해가 될 것입니다." 그 전쟁이 어느 전쟁을 말하는지, 아무도 묻지 않았다.',fx:{mo:3}},
- '1945-01-29':{t:'📻 BBC 런던 방송',m:'지난 1월 25일로 연합군이 아르덴 돌출부를 완전히 되찾았다. 12월 16일에 시작된 독일의 마지막 대공세는 실패로 끝났고, 전선은 다시 독일 국경으로 옮겨 가고 있다.',e:'아르덴 대공세(벌지 전투)는 독일이 서부 전선에서 벌인 마지막 대규모 반격이었다.',fx:{mo:3}},
+ '1945-01-29':{t:'📻 BBC 런던 방송',m:'지난달 포위됐던 바스토뉴에 다시 보급차가 들어간다. 연합군은 1월 25일까지 아르덴에서 잃었던 땅을 되찾았다. 전선은 독일 국경 쪽으로 옮겨 가고 있다.',e:'아르덴 대공세(벌지 전투)는 독일이 서부 전선에서 벌인 마지막 대규모 반격이었다.',fx:{mo:3}},
  '1945-02-03':{t:'📻 BBC 런던 방송',m:'소련 신문의 보도가 전해졌다. 지난 1월 27일 소련군이 폴란드의 아우슈비츠라는 수용소를 해방했다고 한다. 살아남은 사람들의 모습은 차마 전할 수 없을 정도라고.',fx:{mo:-5},e:'나치는 아우슈비츠 등 강제 수용소에서 유대인을 계획적으로 학살하였다(홀로코스트). 유대인뿐 아니라 장애인, 정치범 등도 희생되었다.'},
  '1945-02-13':{t:'📻 BBC 런던 방송',m:'루스벨트·처칠·스탈린이 크림반도의 얄타에서 만났다는 발표가 나왔다. 전쟁이 끝나면 독일을 나누어 점령하고, 평화를 지킬 새 국제기구를 만들 회의를 열기로 했다고 한다.'},
  '1945-02-16':{t:'📻 BBC 런던 방송',m:'2월 13일 밤부터 15일까지 영국과 미국이 독일 드레스덴을 폭격했다. 도심의 집들이 불타고 많은 주민이 목숨을 잃었다는 소식이다.',fx:{mo:-2},e:'제2차 세계 대전에서는 도시와 산업 지구에 대한 무차별 폭격으로 수많은 민간인이 희생되었다.'},
@@ -653,6 +657,7 @@ function saveAndLeave(){
   try{localStorage.setItem(CONTINUE_KEY,JSON.stringify(payload));}
   catch(e){alert('기기에 저장하지 못했습니다. 브라우저 저장 공간·시크릿 모드를 확인하세요.');return;}
   if(!readContinue()){alert('저장 결과를 확인하지 못했습니다.');return;}
+  audioScene('quiet');
   S=null;$('choices').innerHTML='';$('gameScreen').classList.add('hidden');document.body.classList.remove('ingame');
   $('startScreen').classList.remove('hidden');$('btnRec').classList.add('hidden');$('dateLabel').textContent='';$('dayLabel').textContent='';
   refreshContinueButton();renderRanks();
@@ -871,6 +876,7 @@ function log(html, cls=''){
   const p=document.createElement('p'); if(cls) p.className=cls; p.innerHTML=html;
   $('log').appendChild(p);
   if(!batchStart){ batchStart=p; showFrom(p); } else moreHint();
+  if(/홀로코스트|난징 대학살|아우슈비츠|베르겐벨젠|위안부|강제 동원|도쿄의 주택가|드레스덴을 폭격|유대인을 학살/.test(html))audioScene('quiet');
   if(cls==='radio') sfx('radio');
   if(FX.motion && ['story','radio','beat','beatHead','react','situ'].includes(cls)) queueType(p);
 }
@@ -1272,28 +1278,96 @@ function beatQuiz(q){
 function arcTotal(who){ return ARCS[who].length; }
 
 /* ================= 연출: 소리 · 눈 · 붉은 테두리 · 타자 ================= */
-const FX = { sound:false, motion:true, ctx:null };
+const FX = { sound:false, music:false, motion:true, ctx:null, scene:'shelter', recordOpen:false,
+  step:0, timer:null, voices:{sound:new Set(),music:new Set()} };
 try{ if(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) FX.motion=false; }catch(e){}
+const MUSIC_SCORE = {
+  shelter:{beat:840, bass:[50,46,53,48], notes:[62,0,65,69,0,67,65,0,62,0,60,65,0,64,60,0]},
+  night:{beat:560, bass:[38,39,36,38], notes:[50,0,0,51,0,0,55,0,50,0,0,48,0,0,51,0]}
+};
+function audioAllowed(channel){
+  return FX[channel] && FX.ctx?.state==='running' && !document.hidden && !FX.recordOpen && FX.scene!=='quiet';
+}
+function silenceChannel(channel){
+  for(const source of FX.voices[channel]){
+    try {source.stop();}catch(_){}
+  }
+  FX.voices[channel].clear();
+}
+function connectVoice(source,gain,channel){
+  source.connect(gain);gain.connect(FX.ctx.destination);
+  FX.voices[channel].add(source);
+  source.onended=()=>{source.disconnect();gain.disconnect();FX.voices[channel].delete(source);};
+}
+function tone(channel,hz,delay,length,volume,wave='sine',endHz=hz){
+  const ac=FX.ctx, t=ac.currentTime+delay;
+  const o=ac.createOscillator(), g=ac.createGain();
+  o.type=wave;o.frequency.setValueAtTime(hz,t);
+  if(endHz!==hz)o.frequency.exponentialRampToValueAtTime(endHz,t+length);
+  g.gain.setValueAtTime(.0001,t);
+  g.gain.exponentialRampToValueAtTime(volume,t+Math.min(.035,length/4));
+  g.gain.exponentialRampToValueAtTime(.0001,t+length);
+  connectVoice(o,g,channel);o.start(t);o.stop(t+length+.01);
+}
+function playMusicStep(){
+  if(!audioAllowed('music'))return;
+  const score=MUSIC_SCORE[FX.scene], i=FX.step++ % score.notes.length;
+  const hz=n=>440*2**((n-69)/12);
+  if(i%4===0)tone('music',hz(score.bass[i/4]),0,score.beat*.0027,.025);
+  if(score.notes[i])tone('music',hz(score.notes[i]),.04,score.beat*.0013,.025,FX.scene==='night'?'sine':'triangle');
+}
+function refreshMusic(){
+  if(FX.timer!==null){clearInterval(FX.timer);FX.timer=null;}
+  silenceChannel('music');
+  if(audioAllowed('music')){
+    playMusicStep();
+    FX.timer=setInterval(playMusicStep,MUSIC_SCORE[FX.scene].beat);
+  }
+}
+function audioScene(scene){
+  if(FX.scene===scene)return;
+  FX.scene=scene;FX.step=0;silenceChannel('sound');refreshMusic();
+}
+function recordAudio(open){
+  if(FX.recordOpen===open)return;
+  FX.recordOpen=open;silenceChannel('sound');refreshMusic();
+}
 function sfx(kind){
-  if(!FX.sound) return;
-  try{
-    if(!FX.ctx) FX.ctx=new (window.AudioContext||window.webkitAudioContext)();
-    const ac=FX.ctx, t=ac.currentTime, g=ac.createGain(); g.connect(ac.destination);
-    if(kind==='radio'){ // 잡음
-      const len=ac.sampleRate*0.45, buf=ac.createBuffer(1,len,ac.sampleRate), d=buf.getChannelData(0);
-      for(let i=0;i<len;i++) d[i]=(Math.random()*2-1)*(1-i/len);
-      const src=ac.createBufferSource(); src.buffer=buf; const f=ac.createBiquadFilter(); f.type='bandpass'; f.frequency.value=1800;
-      src.connect(f); f.connect(g); g.gain.value=0.08; src.start(t);
-    } else if(kind==='beep'||kind==='morse'){
-      const pattern = kind==='morse' ? [.08,.08,.22,.08,.08] : [.07];
-      let at=t; pattern.forEach(dur=>{ const o=ac.createOscillator(), gg=ac.createGain(); o.frequency.value=720; o.connect(gg); gg.connect(ac.destination); gg.gain.setValueAtTime(0.06,at); gg.gain.setValueAtTime(0,at+dur); o.start(at); o.stop(at+dur+.01); at+=dur+.07; });
-    } else if(kind==='thump'){
-      const o=ac.createOscillator(); o.type='sine'; o.frequency.setValueAtTime(90,t); o.frequency.exponentialRampToValueAtTime(35,t+.5);
-      o.connect(g); g.gain.setValueAtTime(0.35,t); g.gain.exponentialRampToValueAtTime(0.001,t+.6); o.start(t); o.stop(t+.6);
-    } else if(kind==='bell'){
-      [523,659,784].forEach((fq,i)=>{ const o=ac.createOscillator(), gg=ac.createGain(); o.frequency.value=fq; o.connect(gg); gg.connect(ac.destination); gg.gain.setValueAtTime(0.08,t+i*.05); gg.gain.exponentialRampToValueAtTime(0.001,t+2.5); o.start(t+i*.05); o.stop(t+2.6); });
-    }
-  }catch(e){}
+  if(!audioAllowed('sound'))return;
+  if(kind==='radio'){
+    // A short filtered tuning sweep, generated without consuming game randomness.
+    tone('sound',670,0,.09,.025,'triangle',350);
+    tone('sound',520,.08,.055,.023,'triangle',820);
+  }else if(kind==='morse'){
+    let delay=0;
+    for(const dur of [.06,.06,.16,.06,.06]){tone('sound',670,delay,dur,.04);delay+=dur+.05;}
+  }else if(kind==='thump'){
+    tone('sound',110,0,.21,.09,'sine',46);
+  }else if(kind==='bell'){
+    [523,784,1046].forEach((hz,i)=>tone('sound',hz,i*.025,.8,.025));
+  }else if(kind==='good'||kind==='bad'){
+    const notes=kind==='good'?[440,554]:[330,277];
+    notes.forEach((hz,i)=>tone('sound',hz,i*.09,.14,.032));
+  }else if(kind==='click'||kind==='beep'){
+    tone('sound',kind==='click'?390:660,0,.065,.032);
+  }
+}
+async function toggleAudio(channel){
+  const buttons=(channel==='music'?['btnMusic','battleMusic']:['btnSnd','battleSnd']).map($);
+  FX[channel]=!FX[channel];
+  if(FX[channel]){
+    try{
+      if(!FX.ctx)FX.ctx=new (window.AudioContext||window.webkitAudioContext)();
+      if(FX.ctx.state!=='running')await FX.ctx.resume();
+    }catch(_){FX[channel]=false;buttons.forEach(b=>b.title='이 브라우저에서 소리를 재생할 수 없습니다.');}
+  }
+  for(const btn of buttons){
+    btn.setAttribute('aria-pressed',String(FX[channel]));
+    btn.textContent=(channel==='music'?'♫ 음악 ':'효과음 ')+(FX[channel]?'켬':'끔');
+  }
+  if(channel==='music')refreshMusic();
+  else if(FX.sound)sfx('beep');
+  else silenceChannel('sound');
 }
 // 타자 효과: 이야기·무전 문장을 한 글자씩
 let typeQ=Promise.resolve(), typeSkip=false;
@@ -1359,34 +1433,84 @@ function itemQuiz(k){
   });
 }
 const HISTORY_SCENES = [
-  {day:1, title:'벽지 아래의 지도', year:'1937~1940', text:'떨어진 벽지 아래에 두 장의 신문 지도가 붙어 있다. 중국 지도에는 1937년 일본의 침략으로 전쟁이 크게 번진 곳이, 유럽 지도에는 1939년 독일이 침공한 폴란드가 표시돼 있다. 영국과 프랑스는 독일에 선전 포고했다. 이듬해 독일군은 벨기에를 거쳐 프랑스로 진격했다.', map:true, ask:'폴란드 침공 뒤, 이 학교가 있는 벨기에는 어떻게 전쟁에 휘말렸을까?', options:['독일군이 서쪽의 프랑스를 공격하면서 벨기에도 침공했다.','벨기에가 폴란드와 국경을 맞대고 있어 전투가 곧바로 넘어왔다.'], answer:0, why:'지도에서 독일을 기준으로 폴란드는 동쪽, 벨기에와 프랑스는 서쪽이다. 이곳에는 1940년 독일의 서유럽 침공으로 전쟁이 닥쳤다.'},
+  {day:1, title:'보급차가 다니는 길', year:'1937~1940 · 아르덴의 지도', text:'창고 벽에 신문 지도가 붙어 있다. 1937년 중국에서는 일본의 침략으로 전쟁이 확대됐다. 1939년에는 독일군이 폴란드를 침공했다. 유럽 지도의 서쪽에는 오늘 방송에서 들은 마을 이름이 적혀 있다.',map:true,why:'1940년 독일군은 벨기에를 거쳐 프랑스로 진격했다. 1944년 겨울에는 벨기에의 바스토뉴가 포위됐다. 도로가 다시 열리자 보급차가 이곳까지 올 수 있었다.'},
   {day:3, title:'날짜가 다른 두 통의 속보', year:'1941', text:'신문철에서 짤막한 속보 두 장이 떨어진다. 6월, 독일군이 소련을 침공했다. 12월, 일본군이 하와이 진주만의 미군 기지를 공격했다.', ask:'두 번째 속보에 붙일 지도 표지는?', options:['동유럽 · 독일과 소련 사이의 전선','태평양 · 미국과 일본 사이의 전선'], answer:1, why:'진주만 공격 뒤 미국은 일본에 선전 포고했다. 중국에서 이미 싸우고 있던 일본의 전쟁이 태평양의 미국과 벌이는 전쟁으로 확대됐다.'},
-  {day:6, title:'신문 지도에서 뒤바뀐 화살표', year:'1942~1943', text:'오래된 신문 두 장. 첫 장에는 독일군이 소련의 스탈린그라드까지 진격한 길이 그려져 있다. 다음 장에는 그곳에서 독일군이 항복했다는 기사가 실렸다. 태평양에서는 미군이 미드웨이 해전에서 일본 해군을 물리쳤다.', ask:'스탈린그라드 전투 뒤 소련군의 반격을 어느 방향으로 그릴까?', options:['서쪽, 독일 쪽으로','동쪽, 소련 내륙 쪽으로'], answer:0, why:'소련군은 동쪽에서 독일 쪽으로 밀고 들어갔다. 태평양과 유럽 동부에서 전세가 바뀌고 있었다.'},
-  {day:9, title:'접힌 노르망디 지도', year:'1944', text:'6월 6일자 지도에 영국에서 프랑스 북부 노르망디로 건너간 연합군의 길이 보인다. 신문을 펼치니 반대쪽에는 소련군의 진격로도 그려져 있다.', ask:'두 전선의 화살표를 이어 보면?', options:['서쪽 연합군 ← 독일 → 동쪽 소련군','서쪽 연합군 → 독일 ← 동쪽 소련군'], answer:1, why:'노르망디에 상륙한 연합군은 서쪽에서, 소련군은 동쪽에서 독일로 진격했다. 독일은 서쪽 아르덴에서 다시 반격했지만 전세를 뒤집지 못했다.'},
+  {day:6, title:'신문 두 장을 포개면', year:'1942~1943', text:'접힌 유럽 전황도 두 장을 펼쳤다. 같은 도시 이름 옆에서 화살표의 방향이 달라졌다.', why:'스탈린그라드에서 독일군이 패한 뒤 소련군이 서쪽으로 반격했다. 태평양에서는 미드웨이 해전(1942)에서 미국이 일본 해군을 물리치며 전세가 바뀌고 있었다.'},
+  {day:9, title:'노르망디에서 온 엽서', year:'1944', text:'구겨진 엽서 뒷면에 누군가 연필로 적었다. “6월 6일, 연합군이 영국에서 바다를 건너 프랑스 노르망디에 상륙했다.” 서쪽의 연합군과 동쪽의 소련군 사이에 독일이 있다.'},
   {day:11, title:'돌아오지 못한 이웃들', year:'전쟁 중의 민간인', text:'나치는 유대인이라는 이유로 사람들의 권리를 빼앗고 조직적으로 학살했다. 이를 홀로코스트라고 한다. 아시아에서는 1937년 난징을 점령한 일본군이 민간인과 포로를 대규모로 살해했다. 전투 지도에는 희생된 사람들의 이름이 보이지 않는다.'},
-  {day:14, title:'벨기에의 5월, 한국의 8월', year:'게임 밖 역사 후일담', text:'1945년 5월 8일, 벨기에의 라디오는 유럽 전쟁의 끝을 알렸다. 같은 날 한국에 있던 사람도 전쟁이 끝났다고 말할 수 있었을까?', why:'5월 독일이 항복했을 때 한국은 여전히 일본의 식민 지배 아래 있었고 아시아·태평양 전쟁은 계속됐다. 8월 15일 일본이 항복을 발표하면서 한국은 광복을 맞았다. 일본은 9월 2일 항복 문서에 서명했다.'}
+  {day:14, title:'아직 쓰이지 않은 마지막 면', year:'1945년 겨울', text:'유럽 소식 아래에 태평양 소식이 나란히 인쇄돼 있다. 신문의 마지막 면은 비어 있다.', ask:'유럽에서 먼저 전쟁이 끝난다면, 그날 일본의 식민 지배 아래 있는 한국에도 같은 소식이 올까? 지금의 예상을 한 문장으로 남겨 보자.'}
 ];
 function schoolMap(){
   return '<span class="schoolMap" role="img" aria-label="유럽 위치 약도. 서쪽에 프랑스와 벨기에, 중앙에 독일, 동쪽에 폴란드"><i>벨기에 ●</i><i>독일 ●</i><i>폴란드 ●</i><i>프랑스 ●</i></span>';
 }
-function historyKey(){return 'RS_HISTORY_SCENES_1_'+S.name;}
+function traceSchoolMap(scene,finish){
+  const places=[
+    ['poland','폴란드','독일이 1939년 침공한 곳'],
+    ['bastogne','벨기에 · 바스토뉴','지금 우리 대피소가 있는 곳']
+  ];
+  const marked=new Set();
+  log(ok('zofia')?'조피아가 연필을 건넨다. “내 고향 폴란드와 우리가 있는 바스토뉴, 두 곳을 짚어 봐.”':'연필로 폴란드와 대피소가 있는 바스토뉴를 짚어 보자.','story');
+  function trace(){
+    choices(places.map(([id,label,sub])=>({label,sub,cls:'pin-'+id,disabled:marked.has(id),fn:()=>{
+      marked.add(id);
+      log(id==='poland'?'폴란드 옆에는 1939년 9월이라는 날짜가 적혀 있다. 독일이 침공하자 영국과 프랑스가 독일에 선전 포고했다.':scene.why,'exp');
+      if(marked.size===places.length)cont(finish,'지도를 접고 돌아간다');else trace();
+    }})),'traceMap');
+  }
+  trace();
+}
+function historyKey(version=2){return 'RS_HISTORY_SCENES_'+version+'_'+S.name;}
 function readHistoryDays(){
-  try {const found=JSON.parse(localStorage.getItem(historyKey())||'[]');return Array.isArray(found)?found:[];}catch(_){return [];}
+  function read(version){
+    try{
+      const days=JSON.parse(localStorage.getItem(historyKey(version))||'[]');
+      return Array.isArray(days)?days:[];
+    }catch(_){return [];}
+  }
+  return [...new Set([...read(2),...read(1).filter(day=>day===3||day===11)])];
+}
+function easternFrontClippings(){
+  return '<div class="jl"><b>1942년 여름 · 독일군의 진격</b><p aria-label="서쪽에서 동쪽으로">서쪽　⟶　스탈린그라드</p></div>'+
+    '<div class="jl"><b>1943년 2월 이후 · 소련군의 반격</b><p aria-label="스탈린그라드에서 서쪽으로">서쪽　⟵　스탈린그라드</p></div>';
+}
+function normandyConversation(){
+  if(ok('jack'))return '잭이 엽서를 뒤집었다. “형은 노르망디에 상륙했어. 내가 늘 서쪽 지도만 들여다본 까닭이지. 그런데 저 반대편에서도 독일 쪽으로 오고 있었구나.”';
+  if(ok('marie'))return '마리는 손가락으로 바다를 건너 프랑스 해안까지 따라갔다. “노르망디 소식을 들었을 때 파리 생각부터 났어요. 저 동쪽에서는 소련군이 독일 쪽으로 가고 있었군요.”';
+  if(ok('leon'))return '레온이 엽서 한쪽을 접었다 폈다. “프랑스 해안에 상륙한 군대가 서쪽에서 다가왔지. 자, 이쪽도 펴 보게. 동쪽에서는 소련군이 다가오고 있었네.”';
+  if(ok('emil'))return '에밀이 아르덴 숲에 손을 짚었다. “노르망디에 상륙한 연합군이 서쪽에서 다가왔지. 반대편에서는 소련군이 오고 있었어. 그래도 이 숲의 싸움은 끝나지 않았네.”';
+  const reader=aliveMates().find(m=>ok(m.id));
+  if(reader)return J(reader.name,'이가')+' 엽서 가장자리의 화살표를 따라갔다. “프랑스 해안에서 온 군대와 소련 쪽에서 온 군대 사이에 독일이 있네. 지도를 접으면 한쪽만 보이겠어.”';
+  return '당신은 엽서를 반으로 접었다가 다시 폈다. 프랑스 쪽에서 다가오는 연합군과 동쪽에서 다가오는 소련군이 한눈에 들어왔다.';
 }
 function historyEntry(scene){
-  return '<details class="jl"><summary>'+scene.year+' · '+scene.title+'</summary><p>'+scene.text+'</p>'+(scene.map?schoolMap():'')+(scene.ask?'<p>'+scene.ask+'</p>':'')+(scene.why?'<details><summary>설명 확인</summary><p>'+scene.why+'</p></details>':'')+'</details>';
+  return '<details class="jl"><summary>'+scene.year+' · '+scene.title+'</summary><p>'+scene.text+'</p>'+(scene.map?schoolMap():'')+(scene.day===6?easternFrontClippings():'')+(scene.ask?'<p>'+scene.ask+'</p>':'')+(scene.why?'<details><summary>설명 확인</summary><p>'+scene.why+'</p></details>':'')+'</details>';
 }
 function historyMorning(next){
   const scene=HISTORY_SCENES.find(s=>s.day===S.day);
   if(!scene || readHistoryDays().includes(scene.day))return next();
-  log('<b>'+scene.year+' · '+scene.title+'</b><br>'+scene.text+(scene.map?schoolMap():''),'exp');
-  if(scene.day===1){
-    if(ok('zofia'))log('조피아가 폴란드에 손을 얹는다. “여기가 내 나라야. 서쪽으로 손가락을 옮겨 봐. 지금 우리가 있는 곳까지.”','story');
-    if(ok('marie'))log('마리가 벨기에 아래에 놓인 프랑스를 짚는다. “파리에서 피란행렬을 보던 때가 생각나요.”','story');
-  }
+  log('<b>'+scene.year+' · '+scene.title+'</b><br>'+scene.text,'exp');
+  if(scene.day===1)return traceSchoolMap(scene,finish);
   function finish(){
     try {localStorage.setItem(historyKey(),JSON.stringify([...new Set([...readHistoryDays(),scene.day])]));}catch(_){}
     next();
+  }
+  if(scene.day===6){
+    log(easternFrontClippings(),'info');
+    return cont(()=>{log(scene.why,'exp');cont(finish,'신문을 접는다');},'두 화살표가 달라진 까닭 읽기');
+  }
+  if(scene.day===9){
+    log(normandyConversation(),'story');
+    return cont(finish,'엽서를 일지에 끼운다');
+  }
+  if(scene.day===14){
+    const question=ok('jack')?'잭이 고향에 보낼 엽서를 접는다. “독일이 항복하면 나도 바로 집으로 갈 수 있을까? 태평양 쪽은 어떻게 될까?”':scene.ask;
+    log('<label>'+question+'<br><textarea id="warPrediction" rows="2" maxlength="220" placeholder="나는 …라고 예상한다. 왜냐하면 …"></textarea></label>','info');
+    return cont(()=>{
+      const field=$('warPrediction');
+      S.historyPrediction=field.value.trim().slice(0,220);
+      field.readOnly=true;
+      finish();
+    },'예상을 접어 일지에 넣는다');
   }
   if(!scene.options){
     if(scene.why)return cont(()=>{log(scene.why,'exp');cont(finish);},'생각한 뒤 두 지역의 결말 확인');
@@ -1419,12 +1543,14 @@ function bindHistoryOrder(){
   });
 }
 function historyAfterword(){
-  const scene=HISTORY_SCENES[HISTORY_SCENES.length-1];
-  return '<div class="share"><b>대피소 밖 세계의 결말</b><p>'+scene.text+'</p><label>내 설명 한 문장<br><textarea id="historyReflection" rows="2" placeholder="5월에 벨기에에서는…, 한국에서는…"></textarea></label><details><summary>역사 기록과 비교하기</summary><p>'+scene.why+'</p></details><details id="historyOrder"><summary>사건을 일어난 순서대로 놓아 보기</summary><div class="historyButtons"></div><p role="status"></p></details><details><summary>전쟁의 흐름 다시 읽기</summary>'+historyNotebook()+'</details></div>';
+  const prediction=S.historyPrediction||'';
+  const earlier=prediction?'<p><b>내가 남긴 예상</b><br>'+esc(prediction)+'</p>':'';
+  return '<div class="share"><b>대피소 밖 세계의 결말</b><p>게임 밖 후일담 · 1945년 5월 8일, 벨기에의 라디오가 유럽에서 전쟁이 끝났다고 전했다. 같은 날 한국 사람도 전쟁이 끝났다고 말할 수 있었을까?</p>'+earlier+'<label>내 설명 한 문장<br><textarea id="historyReflection" rows="2" placeholder="5월에 벨기에에서는…, 한국에서는…"></textarea></label><details><summary>내 생각과 실제 결말 비교하기</summary><p>5월에 독일이 항복했을 때 한국은 아직 일본의 식민 지배 아래 있었고 아시아·태평양에서는 전쟁이 계속됐다. 8월 15일 일본이 항복을 발표하면서 한국은 광복을 맞았다. 일본이 항복 문서에 서명한 날은 9월 2일이다.</p></details><details id="historyOrder"><summary>사건을 일어난 순서대로 놓아 보기</summary><div class="historyButtons"></div><p role="status"></p></details><details><summary>전쟁의 흐름 다시 읽기</summary>'+historyNotebook()+'</details></div>';
 }
 
 function openRecord(tab='journal'){
   if(!S) return;
+  recordAudio(true);
   const box=$('recBody');
   const T=[['history','🗺️ 역사 일지'],['mates','👥 동료'],['tac','★ 전술'],['ach','🏅 업적'],['journal','📖 일지'],['items',`🗂️ 사료 ${S.items.size}/${Object.keys(ITEMS).length}`]];
   const tabs=`<div class="tabs">${T.map(([k,n])=>`<button class="${tab===k?'on':''}" data-t="${k}">${n}</button>`).join('')}</div>`;
@@ -1745,6 +1871,7 @@ function expStage(){
   }})));
 }
 function expNight(){
+  audioScene('night');
   const e=EXPED[S.exp.k], m=mate(S.exp.who);
   log(`— ${dateStr()} 밤 · 원정지 —`,'head');
   log(pick(['무너진 헛간에 몸을 숨기고 교대로 눈을 붙였다.','눈 구덩이를 파고 불도 피우지 못한 채 밤을 지새웠다.','버려진 교회 제단 뒤에서 밤을 보냈다. 바람 소리가 사람 목소리처럼 들렸다.']),'story');
@@ -2483,7 +2610,7 @@ function dfOpen(P,done){
   const start=()=>{ S.lastFormation={...place.units}; ui.phase='run'; ui.sel=null; tip.innerHTML=''; st=dfCreate(P,place); try{sfx('thump');}catch(e){} renderAct();
     btns.innerHTML='<button id="dfFast">⏩ 2배속</button><button id="dfSkip">⏭ 결과</button>'+(P.units.includes('zofia')?'<button id="dfRepair">🔧 수리 전환</button>':'');
     updateRepair();
-    if(document.getElementById('dfRepair')) document.getElementById('dfRepair').onclick=()=>{const z=st.units.find(u=>u.id==='zofia');if(!z||st.broke||st.repairAttempts>=2||st.supLeft<1)return;z.repair=!z.repair;z.cd=Math.max(z.cd,.25);updateRepair();};
+    if(document.getElementById('dfRepair')) document.getElementById('dfRepair').onclick=()=>{const z=st.units.find(u=>u.id==='zofia');if(!z||st.broke||st.repairAttempts>=2||st.supLeft<1)return;z.repair=!z.repair;if(z.repair && !S.flags.repairExplained){S.flags.repairExplained=true;tip.textContent='조피아가 사격을 멈추고 담장을 고친다. 시도할 때마다 물자 1, 하룻밤에 두 번까지. 실패해도 물자는 소모된다.';}z.cd=Math.max(z.cd,.25);updateRepair();};
     document.getElementById('dfFast').onclick=(e)=>{ speed=speed===1?2:1; e.target.textContent=speed===1?'⏩ 2배속':'▶ 보통'; };
     document.getElementById('dfSkip').onclick=()=>{ if(dfBoss(st)||(P.boss&&!st.bossSeen)){ tip.innerHTML='<b style="color:#ff7a6a">거인이 있는 한 건너뛸 수 없다!</b>'; return; } while(!st.done) dfStep(st,.05); finish(); };
     raf=requestAnimationFrame(loop); };
@@ -2685,9 +2812,6 @@ function beginRun(name,returning){
   $('log').innerHTML='';
   log(`${esc(name)}. 바스토뉴 외곽, 눈에 파묻힌 생트마리 수도원 학교. 두꺼운 돌벽과 종탑, 지하 저장고와 작은 도서관이 있는 이곳을 거점으로 삼았다.`,'story');
   log('이번 겨울을 함께 버틸 사람들: '+S.squad.map(m=>`<b>${m.name}</b> <span class="sys">(${m.role})</span>`).join(', '),'story');
-  log(ok('emil')?'에밀이 창문에 판자를 대며 말했다. "마을 사람들은 다 떠났거나… 일어났네. 군대도 동쪽으로 떠났고. 이제 이 숲엔 우리와 놈들뿐이야. 우선 오늘 밤부터 넘기세."':`${J(S.squad[0].name.split(' ')[0],'이가')} 창문에 판자를 대며 말했다. "마을 사람들은 다 떠났거나… 일어났어요. 군대도 동쪽으로 떠났고요. 이제 이 숲엔 우리와 놈들뿐이에요. 우선 오늘 밤부터 넘겨요."`,'story');
-  log('모두 지쳐 있다. 남은 것은 통조림 몇 개와 장작 조금, 철사 한 묶음. 그리고 정문 앞 눈 속에서 숨진 채 발견된 영국 SOE 요원 헤이스팅스 대위의 수첩 한 권.','story');
-  log(ok('leon')?'레온이 수첩을 넘기다 눈을 크게 떴다. "레지스탕스를 위한 보급 은닉처 위치가 적혀 있군. 독일군이 읽어도 모르게 전부 세계사 문제로 감춰 놨어. 답을 알면 찾을 수 있네."':'수첩을 넘기던 당신은 눈을 크게 떴다. 레지스탕스를 위한 보급 은닉처 위치가 적혀 있다. 독일군이 읽어도 모르게 전부 세계사 문제로 감춰 두었다. 답을 알면 찾을 수 있다.','story');
   morning();
 }
 
@@ -2699,6 +2823,7 @@ const MORNING = {
 };
 
 function morning(){
+  audioScene('shelter');
   S.day++; S.known=false; S.knowledgeExplore=false; S.knowledgeGuard=0; S.actLeft=2; S.slotLog=null; S.todayActs=[]; S.request=null; S.reqDone=false;S.resumePoint=null;updateSaveButton();S.darkNight=chance(.30);
   render();
   const d=curDate(); const key=iso(d); const ss=season();
@@ -2734,12 +2859,12 @@ function morning(){
   const spoilInterval=ss==='winter'?5:(S.day<65?3:2);
   if(S.food>=10 && S.day%spoilInterval===0){
     const spoiled=ss==='winter'?1:Math.min(3,Math.max(1,Math.ceil(S.food*(S.day<65?.07:.11))));
-    change({food:-spoiled},true);if(!S.flags.sawSpoilage){S.flags.sawSpoilage=true;log('감자 자루 밑이 물러졌다. 상한 감자를 골라냈다. 날이 풀리면 저장고를 더 자주 살펴야 한다.','story');} losses.push('부패 −'+spoiled);
+    change({food:-spoiled},true);if(!S.flags.sawSpoilage){S.flags.sawSpoilage=true;log('감자 자루 밑이 물러졌다. 상한 감자를 골라냈다. 저장고에는 식량이 최대 24만큼 들어간다. 겨울보다 봄에 더 자주, 더 많이 상한다.','story');} losses.push('부패 −'+spoiled);
   }
   if(S.sup>=19 && S.day%7===0){change({sup:-1},true);}
   if(S.def>=50 && S.day%5===0){change({def:-1},true);}
   const stockLine=Object.keys(beforeStores).filter(k=>S[k]!==beforeStores[k]).map(k=>NAMES[k]+' '+beforeStores[k]+' → '+S[k]);
-  log([...stockLine,...losses].join(' · ')||'아침 재고 변동 없음','sys');
+  if(S.day>1)log([...stockLine,...losses].join(' · ')||'아침 재고 변동 없음','sys');
   if(S.flags.marieLetterDay && S.day>=S.flags.marieLetterDay && ok('marie')){
     delete S.flags.marieLetterDay;log('마리가 지난번에 접어 둔 편지를 식탁에 펼쳤다. 이번에는 아버지와 같은 참호에 있던 사람들의 이름을 소리 내어 읽었다.','beat');
     note('마리가 식탁에서 아버지의 편지를 읽었다');
@@ -2762,12 +2887,13 @@ function morning(){
   render();
   if(checkDeath()) return;
   S.nextAttack = attackPower(); rollSpecial(); if(trusted('jack')) S.known=true; render();
-  if(!S.exp) situation();
+  if(S.day>1 && !S.exp) situation();
   const next=()=>{ if(S.exp) return expStage(); if(S.flags.scratched){ S.flags.scratched=false; log('어젯밤 문틈에서 생긴 손등의 상처를 모두가 말없이 지켜보고 있다.','story'); return memoryTest(dayPhase); } if(S.day%3===0) checkpoint(dayPhase); else if(S.day<=7||S.day%2===0||reviewDue()) rollcall(dayPhase); else dayPhase(); };
   const withBeat=()=>{ if(S.exp) return next(); const nb=nextBeat(); if(nb) playBeat(nb.who,nb.b,next); else next(); };
   const prevKey = iso(new Date(curDate().getTime()-86400000));
   const keys=Object.keys(CALENDAR).filter(k=>k>prevKey && k<=key).sort();
   if(keys.length){
+    if(S.day===1)newBatch();
     keys.forEach(k=>{ const ev=CALENDAR[k]; const [,mm,dd]=k.split('-').map(Number);
       S.lastNews=`${k.replace(/-/g,'.')} — ${ev.m.split('. ')[0]}.`;
       log(`${ev.t}${k!==key?` <span class="sys">(${mm}월 ${dd}일 소식)</span>`:''}<br>${stripDead(ev.m)}`,'radio');
@@ -2775,6 +2901,10 @@ function morning(){
       change(ev.fx||{});
       note('라디오: '+ev.m.split('. ')[0].replace(/^어제\([^)]*\) /,'')); if(NEWS_TOPIC[k]) boostTopic(NEWS_TOPIC[k]); });
     if(checkDeath()) return;
+    if(S.day===1){
+      log(`창고 문을 연다. 아침 배급 뒤 남은 식량은 ${S.food}, 장작과 물자는 ${S.sup}. 오늘 오전, 누구에게 어떤 일을 맡길까?`,'situ');
+      return dayPhase();
+    }
     cont(()=>historyMorning(withBeat),'계속');
   } else historyMorning(withBeat);
 }
@@ -2824,6 +2954,12 @@ function makeRequest(){
   log(`📌 오늘의 부탁 — ${mate(r.who).name.split(' ')[0]}: ${r.t} <span class="sys">(${ACTNAME[r.act]} 하면 ${Object.entries(r.rw).map(([k,v])=>NAMES[k]+' +'+v).join(' · ')}, 신뢰 +1)</span>`,'beat');
 }
 function didAct(id){
+  if(S.day===1 && S.actLeft===2 && S.flags.firstGuide===id){
+    const helper=S.squad[id==='explore'?0:1];
+    const task=id==='explore'?'빈 배낭을 메고 당신과 함께 보급품을 찾으러 나섰다.':'당신을 도와 정문에 덧댈 판자를 날랐다.';
+    log(J(helper.name,'이가')+' '+task,'story');note(helper.name+' · '+ACTNAME[id]);
+    delete S.flags.firstGuide;
+  }
   S.todayActs=S.todayActs||[]; S.todayActs.push(id);
   if(S.request && !S.reqDone && S.request.act===id){ S.reqDone=true; const m=mate(S.request.who);
     log(`📌 ${m.name.split(' ')[0]}의 부탁을 들어주었다.`,'good'); change(S.request.rw); bond(S.request.who,1,true); }
@@ -2867,6 +3003,16 @@ function knowledgeTactics(){
   ]);
 }
 function dayPhase(){
+  audioScene('shelter');
+  if(S.day===1 && S.actLeft===2 && !S.flags.fullMenu){
+    const [runner,builder]=S.squad;
+    choices([
+      {label:'🔦 탐색 나가기 · '+runner.name,sub:'식량을 찾을 장소를 고른다',fn:()=>{S.flags.firstGuide='explore';explorePick();}},
+      {label:'🛠️ 방어 공사 · '+builder.name,sub:'학교 정문을 보강한다',fn:()=>{S.flags.firstGuide='build';buildPick();}},
+      {label:'다른 행동 살펴보기',fn:()=>{S.flags.fullMenu=true;delete S.flags.firstGuide;dayPhase();}}
+    ]);
+    S.resumePoint='day';updateSaveButton();return;
+  }
   if(S.slotLog!==S.actLeft){ S.slotLog=S.actLeft; if(S.actLeft>=2 && !S.request) makeRequest(); log(S.actLeft>=2?'☀️ 오전 — 무엇을 할까? (오늘 남은 행동 2 · 같은 일은 하루에 한 번)':'🌤️ 오후 — 해가 지기 전에 한 가지 더 할 수 있다. (오전과 다른 일)','slot'); }
   const done=id=>(S.todayActs||[]).includes(id);
   const tag=id=>S.request&&!S.reqDone&&S.request.act===id?'📌 부탁 · ':'';
@@ -3227,6 +3373,13 @@ const CALLBACKS=[
 const EVNAME={darwin:'떠돌이 무리의 제안',hj:'소년병',gi:'흑인 병사',antisem:'레온을 향한 증오',soviet:'탈출한 소련군 포로',italian:'이탈리아인 광부',trader:'떠돌이 상인',snow:'분홍 눈보라',quake:'대피소를 뒤흔든 폭발',rats:'쥐 떼',ypres:'방독면 상자',child:'피난민 아이',wounded:'다친 남자',crying:'문밖의 울음소리',airdrop:'보급 투하',bbc:'BBC 암호문',pages:'흩어진 수첩',gate:'성당 검문소',fever:'동료의 고열',fuel:'불타는 연료 트럭',suspects:'숨은 감염자'};
 function afterAction(){
   S.actLeft=(S.actLeft||1)-1;
+  if(S.day===1 && S.actLeft===1){
+    return historyMorning(()=>{
+      const beat=nextBeat();
+      const afternoon=()=>cont(dayPhase,'🌤️ 오후 행동');
+      if(beat)playBeat(beat.who,beat.b,afternoon);else afternoon();
+    });
+  }
   const toNext = S.actLeft>0 ? ()=>cont(dayPhase,'🌤️ 오후') : ()=>cont(dusk,'🌇 해가 진다');
   if(chance(S.actLeft>0?.3:.45)){
     let pool=EVENTS.filter(e=>(!e.cond||e.cond()) && !S.evUsed.includes(e.id));
@@ -3266,6 +3419,7 @@ const DUSK = ['해가 숲 너머로 넘어간다. 눈 덮인 들판이 다시 �
 // 하루가 지나는 것만으로는 감소하거나 회복하지 않는다. 전술·동료 보너스는 기존대로 적용한다.
 function hideRate(){ const base=Math.max(10,50-5*(S.hideUses||0)); return clamp(base + (S.darkNight?15:0) + (S.tactics.has('gandhi')?20:0) + (S.flags.hideBoost?10:0) + (ok('ibra')?10:0), 10, 85); }
 function dusk(){
+  audioScene('night');
   log(`— ${dateStr()} 해 질 녘 —`,'head');
   if(S.request && !S.reqDone){ const m=mate(S.request.who); if(m.alive){ log(`${J(m.name.split(' ')[0],'이가')} 아무 말 없이 고개를 돌렸다. 오늘의 부탁은 끝내 들어주지 못했다.`,'sys'); bond(S.request.who,-1,true); } S.request=null; }
   log(pickAlive(DUSK),'story');
@@ -3548,6 +3702,7 @@ function shareChoices(){
 }
 /* ================= 종전 엔딩 → 냉전 ================= */
 function peaceEnding(){
+  audioScene('quiet');
   S.ended=true;
   const key=END_KEY, prevKey='1945-05-07';
   log(`<div class="chap"><small>${S.day}일째 · 마지막 장</small><br>1945년 5월 8일</div>`,'head');
@@ -3592,6 +3747,7 @@ function peaceEnding(){
 }
 function gameOver(kind){
   if(!S||S.dead)return;
+  audioScene('quiet');
   try{localStorage.setItem('RS_LAST_TEAM_'+S.name,JSON.stringify(S.squad.filter(m=>(S.arc[m.id]||0)<ARCS[m.id].length).map(m=>m.id)));}catch(_){}
   S.dead=true;clearContinue();$('choices').innerHTML='';updateSaveButton();checkAch();
   if(kind!=='peace'){ closeDay(kind==='quit'?'스스로 도전을 마무리했다':kind==='hp'?'기록이 여기서 끊겼다':'모두가 흩어졌다'); vignette(); }
@@ -3667,11 +3823,22 @@ $('btnQuit').onclick=()=>{if(!S||S.dead||S.day<3)return;if(confirm(`현재 ${S.d
 $('btnRec').onclick=()=>openRecord('journal');
 $('btnMates').onclick=()=>openRecord('mates');
 $('btnTac').onclick=()=>openRecord('tac');
-$('recClose').onclick=()=>$('recModal').classList.add('hidden');
-$('recModal').onclick=e=>{ if(e.target.id==='recModal') $('recModal').classList.add('hidden'); };
+function closeRecord(){ $('recModal').classList.add('hidden');recordAudio(false); }
+$('recClose').onclick=closeRecord;
+$('recModal').onclick=e=>{ if(e.target.id==='recModal')closeRecord(); };
 $('btnFx').textContent=FX.motion?'✨ 연출 켬':'✨ 연출 끔';
 $('btnFx').onclick=()=>{ FX.motion=!FX.motion; $('btnFx').textContent=FX.motion?'✨ 연출 켬':'✨ 연출 끔'; vignette(); };
-$('btnSnd').onclick=()=>{ FX.sound=!FX.sound; $('btnSnd').textContent=FX.sound?'🔊 소리 켬':'🔇 소리 끔'; if(FX.sound){ try{ if(!FX.ctx) FX.ctx=new (window.AudioContext||window.webkitAudioContext)(); FX.ctx.resume(); }catch(e){} sfx('beep'); } };
+$('battleSnd').onclick=$('btnSnd').onclick=()=>toggleAudio('sound');
+$('battleMusic').onclick=$('btnMusic').onclick=()=>toggleAudio('music');
+document.addEventListener('visibilitychange',()=>{
+  if(!FX.ctx)return;
+  if(document.hidden){
+    silenceChannel('sound');refreshMusic();
+    FX.ctx.suspend().catch(()=>{});
+  }else if(FX.sound||FX.music){
+    FX.ctx.resume().then(refreshMusic).catch(()=>{});
+  }
+});
 $('log').addEventListener('click',()=>{ typeSkip=true; setTimeout(()=>typeSkip=false,30); });
 $('log').addEventListener('scroll',moreHint);
 $('moreHint').onclick=()=>{ const b=$('log'); b.scrollTop=Math.min(b.scrollHeight, b.scrollTop+b.clientHeight-40); moreHint(); };

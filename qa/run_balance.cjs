@@ -7,7 +7,7 @@ const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 const script = html.split('<script>')[1].split('</script>')[0];
 const game = script.slice(0, script.indexOf('\nrenderAchBox();'));
 const simulator = fs.readFileSync(path.join(__dirname, 'survival_simulator.js'), 'utf8');
-const element = {classList:{add(){},remove(){},toggle(){}},style:{},getContext(){return null;}};
+const element = {value:'',classList:{add(){},remove(){},toggle(){}},style:{},getContext(){return null;}};
 class SimDate extends Date {static now(){return 1700000000000;}}
 const store = new Map();
 const env = {Date:SimDate,window:{},Image:class{},document:{body:element,getElementById:()=>element,createElement:()=>element},
