@@ -1280,12 +1280,13 @@ function arcTotal(who){ return ARCS[who].length; }
 
 /* ================= 연출: 소리 · 눈 · 붉은 테두리 · 타자 ================= */
 const FX = { sound:false, music:false, motion:true, ctx:null, scene:'shelter', recordOpen:false,
-  step:0, timer:null, voices:{sound:new Set(),music:new Set()} };
+  voices:{sound:new Set()} };
 try{ if(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) FX.motion=false; }catch(e){}
-const MUSIC_SCORE = {
-  shelter:{beat:840, bass:[50,46,53,48], notes:[62,0,65,69,0,67,65,0,62,0,60,65,0,64,60,0]},
-  night:{beat:560, bass:[38,39,36,38], notes:[50,0,0,51,0,0,55,0,50,0,0,48,0,0,51,0]}
+const MUSIC_TRACKS={
+  shelter:'assets/music/winter-at-the-monastery.mp3',
+  night:'assets/music/forest-watch.mp3'
 };
+const musicPlayback={player:null, scene:null, offsets:{}, version:0};
 function audioAllowed(channel){
   return FX[channel] && FX.ctx?.state==='running' && !document.hidden && !FX.recordOpen && FX.scene!=='quiet';
 }
@@ -1310,24 +1311,47 @@ function tone(channel,hz,delay,length,volume,wave='sine',endHz=hz){
   g.gain.exponentialRampToValueAtTime(.0001,t+length);
   connectVoice(o,g,channel);o.start(t);o.stop(t+length+.01);
 }
-function playMusicStep(){
-  if(!audioAllowed('music'))return;
-  const score=MUSIC_SCORE[FX.scene], i=FX.step++ % score.notes.length;
-  const hz=n=>440*2**((n-69)/12);
-  if(i%4===0)tone('music',hz(score.bass[i/4]),0,score.beat*.0027,.025);
-  if(score.notes[i])tone('music',hz(score.notes[i]),.04,score.beat*.0013,.025,FX.scene==='night'?'sine':'triangle');
-}
 function refreshMusic(){
-  if(FX.timer!==null){clearInterval(FX.timer);FX.timer=null;}
-  silenceChannel('music');
-  if(audioAllowed('music')){
-    playMusicStep();
-    FX.timer=setInterval(playMusicStep,MUSIC_SCORE[FX.scene].beat);
+  const track=MUSIC_TRACKS[FX.scene];
+  const playback=musicPlayback;
+  const version=++playback.version;
+  if(!FX.music || !track || document.hidden || FX.recordOpen){
+    playback.player?.pause();
+    return;
   }
+  if(!playback.player){
+    const player=new Audio();
+    player.loop=true;
+    const gain=FX.ctx.createGain();
+    gain.gain.value=.23;
+    FX.ctx.createMediaElementSource(player).connect(gain);
+    gain.connect(FX.ctx.destination);
+    playback.player=player;
+  }
+  const player=playback.player;
+  if(playback.scene!==FX.scene){
+    if(playback.scene)playback.offsets[playback.scene]=player.currentTime;
+    player.pause();
+    playback.scene=FX.scene;
+    player.src=track;
+    const position=playback.offsets[FX.scene]||0;
+    player.onloadedmetadata=()=>{
+      if(position && Number.isFinite(player.duration))player.currentTime=position%player.duration;
+    };
+  }
+  player.play().catch(()=>{
+    if(version!==playback.version)return;
+    FX.music=false;
+    for(const id of ['btnMusic','battleMusic']){
+      const button=$(id);
+      button.setAttribute('aria-pressed','false');
+      button.textContent='♫ 음악 다시 켜기';
+    }
+  });
 }
 function audioScene(scene){
   if(FX.scene===scene)return;
-  FX.scene=scene;FX.step=0;silenceChannel('sound');refreshMusic();
+  FX.scene=scene;silenceChannel('sound');refreshMusic();
 }
 function recordAudio(open){
   if(FX.recordOpen===open)return;
@@ -1424,14 +1448,16 @@ async function toggleAudio(channel){
   if(FX[channel]){
     try{
       if(!FX.ctx)FX.ctx=new (window.AudioContext||window.webkitAudioContext)();
-      if(FX.ctx.state!=='running')await FX.ctx.resume();
+      const ready=FX.ctx.state==='running'?null:FX.ctx.resume();
+      if(channel==='music')refreshMusic();
+      if(ready)await ready;
     }catch(_){FX[channel]=false;buttons.forEach(b=>b.title='이 브라우저에서 소리를 재생할 수 없습니다.');}
   }
   for(const btn of buttons){
     btn.setAttribute('aria-pressed',String(FX[channel]));
     btn.textContent=(channel==='music'?'♫ 음악 ':'효과음 ')+(FX[channel]?'켬':'끔');
   }
-  if(channel==='music')refreshMusic();
+  if(channel==='music'){if(!FX.music)refreshMusic();}
   else if(FX.sound)sfx('beep');
   else silenceChannel('sound');
 }
