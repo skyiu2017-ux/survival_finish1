@@ -526,9 +526,9 @@ function baseMates(){
     {id:'leon',name:'레온 바이스',role:'독일에서 망명한 유대인 역사 교사',perk:'수첩 해독 때 오답 1개 지워 줌',alive:true,hurt:0},
   ];
 }
-function makeSquad(){
+function makeSquad(returning){
   const all=[...baseMates(),...NEW_MATES.map(m=>({...m,alive:true,hurt:0}))];
-  const pick4=new Set(shuffle(ALL_IDS).slice(0,4));
+  const pick4=new Set(returning && ALL_IDS.includes(returning)?[returning,...shuffle(ALL_IDS.filter(id=>id!==returning)).slice(0,3)]:shuffle(ALL_IDS).slice(0,4));
   return all.filter(m=>pick4.has(m.id));
 }
 const TALKS = {
@@ -682,9 +682,9 @@ function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','
 const CHOSUNG='ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ';
 function toCho(s){return [...s].map(ch=>{const c=ch.charCodeAt(0); return (c>=0xAC00&&c<=0xD7A3)?CHOSUNG[Math.floor((c-0xAC00)/588)]:ch;}).join('');}
 
-function newState(name){
+function newState(name,returning){
   return {name, runId:'run_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,12), day:0, hp:70, mo:55, food:5, sup:5, def:3, kn:0, grenades:3, hideUses:0, darkNight:false, exploreVisits:{}, activeMs:0, sessionStart:Date.now(), quarantine:false,
-    squad:makeSquad(), tactics:new Set(), trap:0, nextAttack:0, known:false,
+    squad:makeSquad(returning), tactics:new Set(), trap:0, nextAttack:0, known:false,
     used:{mc:new Set(),ox:new Set(),cho:new Set(),ord:new Set()}, quizTopics:{}, quizHistory:[], posBag:[], oxBag:[], evUsed:[],
     missed:[], correct:0, total:0, dead:false, lastNews:'',
     arc:Object.fromEntries(ALL_IDS.map(k=>[k,0])), ach:new Set(), streak:0, maxStreak:0, usedSus:new Set(), nightType:null, insideThreat:0, exp:null, expCool:0, beatsSeen:{}, flags:{}, bond:Object.fromEntries(ALL_IDS.map(k=>[k,0])), leaving:[], journal:[], notes:[], items:new Set()};
@@ -740,7 +740,7 @@ function commitQuizSelection(kind,idx){
 function questionPool(kind,ctx){
   const src={mc:MC,ox:OX,cho:CHO,ord:ORDER}[kind],today=iso(curDate());
   const intelOK=ctx==='note'||ctx==='hq';
-  const avail=src.map((_,i)=>i).filter(i=>(!src[i].av||src[i].av<=today)&&(!src[i].intel||intelOK));
+  const avail=src.map((_,i)=>i).filter(i=>!src[i].storyOnly&&(!src[i].av||src[i].av<=today)&&(!src[i].intel||intelOK));
   const fresh=avail.filter(i=>!S.used[kind].has(i));
   const cool=(ctx==='rollcall'?7:5);
   const ideal=fresh.filter(i=>S.day-(S.quizTopics||{})[quizTopic(kind,i)]>=cool||!(quizTopic(kind,i) in (S.quizTopics||{})));
@@ -893,7 +893,7 @@ function render(){
   vignette();
 }
 const NAMES={hp:'체력',mo:'사기',food:'식량',sup:'물자',def:'방어선',kn:'지식'};
-function change(o){
+function change(o,quiet=false){
   const parts=[];
   for(const k in o){
     if(!o[k]) continue;
@@ -906,7 +906,7 @@ function change(o){
     parts.push(`<span class="${d>0?'good':'bad'}">${NAMES[k]} ${d>0?'+':''}${d}</span>`);
   }
   render();
-  if(parts.length) log(parts.join(' · '),'sys');
+  if(parts.length&&!quiet) log(parts.join(' · '),'sys');
 }
 function checkDeath(){
   if(S.dead) return true;
@@ -1176,6 +1176,15 @@ function playBeat(who,b,next){
     if(checkDeath()) return;
     cont(next);
   };
+  if(who==='marie' && b.quiz?.has==='서부 전선, 땅을 파고' && !loadOpeningHistory().includes('mc:'+LETTER_INDEX)){
+    log('마리가 아버지의 편지에서 같은 마을 이름을 두 번 짚었다. “봄에도, 가을에도 여기였대요. 그렇게 오래 싸우고도 왜 같은 곳에 있었을까요?”','beat');
+    S.forceIdx={kind:'mc',i:LETTER_INDEX};
+    return puzzle('mc','마리에게 답한다',right=>{
+      log(right?'“그래서 편지엔 마을 이름보다 옆에 있던 사람 이름이 더 많았나 봐요.”':'마리가 편지 뒷면을 보여 줬다. “여긴 우리 참호, 저긴 상대 참호래요. 양쪽 다 숨어 지키니 앞으로 나가기 어려웠겠죠.”','beat');
+      if(right){bond(who,1,true);change(b.quiz.fx);}
+      S.flags.marieLetterDay=S.day+3;note('마리와 함께 아버지의 참호 편지를 읽었다');go();
+    },'judge');
+  }
   const selected=b.quiz && beatQuiz(b.quiz);
   if(!selected)return go();
   const {kind,i,original}=selected;
@@ -1192,6 +1201,7 @@ function playBeat(who,b,next){
     go();
   },'judge');
 }
+const LETTER_INDEX=MC.push({storyOnly:true,lv:'대화',q:'편지에 그려진 두 줄의 참호를 보며 말을 건넨다.',o:['“양쪽이 참호에서 버티니, 공격하는 쪽이 큰 피해를 입었겠어요.”','“전쟁 내내 양쪽이 휴전해서 그곳을 지켰겠어요.”','“양쪽이 빠르게 진격해서 전선이 매일 멀리 옮겨 갔겠어요.”','“바다에서만 싸워서 육지의 병사들은 전투를 피했겠어요.”'],a:0,e:''})-1;
 const STORY_PROMPTS={
   emil:'에밀이 장부를 다시 펼쳤다. “여기 적힌 사람들이 어떤 일을 겪었는지, 자네가 기억하는 것부터 얘기해 주게.”',
   jack:'잭이 무전기 소리를 줄였다. “집에서 온 편지를 읽다 보니 궁금해졌어. 자넨 어떻게 배웠어?”',
@@ -1918,10 +1928,11 @@ function dfPlan(P){
   list.sort((x,y)=>x.t-y.t);
   return {list,T,N:list.length};
 }
-function dfDefault(units){
+function dfDefault(units,previous={}){
   const pref={ibra:['tower','win2','win1','front1','front2'],yusuf:['win1','win2','front2','front1','tower'],zofia:['front1','front2','win2','win1','tower'],enzo:['front2','win2','front1','win1','tower'],emil:['tower','win2','win1','front1','front2'],me:['front1','front2','win2','win1','tower'],jack:['front2','front1','win2','win1','tower'],marie:['win2','front1','win1','front2','tower'],leon:['win1','tower','win2','front2','front1']};
   const pl={}, used=new Set();
-  ['emil','ibra','me','jack','enzo','marie','zofia','yusuf','leon'].filter(u=>units.includes(u)).forEach(u=>{ const s=pref[u].find(x=>!used.has(x)); used.add(s); pl[u]=s; });
+  for(const id of units){const slot=previous[id];if(DF_ORDER.includes(slot)&&!used.has(slot)){pl[id]=slot;used.add(slot);}}
+  ['emil','ibra','me','jack','enzo','marie','zofia','yusuf','leon'].filter(u=>units.includes(u)&&!pl[u]).forEach(u=>{ const s=pref[u].find(x=>!used.has(x)); used.add(s); pl[u]=s; });
   return pl;
 }
 // 위치마다 사거리·공격 간격·단발 위력·광역 범위가 다르다.
@@ -2280,7 +2291,7 @@ function dfHeadlessAsk(cb){ const d=dfAskData(); const ok=Math.random()<.6; dfAn
 function dfOpen(P,done){
   let ctx=null; const cv=document.getElementById('dfCanvas');
   try{ ctx=cv&&cv.getContext('2d'); }catch(e){ ctx=null; }
-  const units=P.units; const place={units:dfDefault(units),traps:[]};
+  const units=P.units; const place={units:dfDefault(units,S.lastFormation),traps:[]};
   for(let i=0;i<P.traps;i++) place.traps.push(150+i*40);
   if(!ctx || P.auto){ P.ask=dfHeadlessAsk; return done(dfHeadless(P,place)); }
   const M=document.getElementById('dfModal'); M.classList.remove('hidden');
@@ -2363,7 +2374,7 @@ function dfOpen(P,done){
     const left=plan.N - st.kills - st.leaks;
     top.innerHTML=(ui.arm?`<b style="color:#ffd36b">👉 ${ui.arm==='nade'?'💣 수류탄':'🔥 화염병'} 준비 — 감염자가 모인 눈밭을 누르세요</b><br>`:'')+`남은 무리 <b>${left}</b> · 쓰러뜨림 ${st.kills} · 뚫림 <b style="color:${st.leaks?'#ff7a6a':'inherit'}">${st.leaks}</b><br>🛡️ 담장 ${Math.max(0,Math.round(st.wall/st.max*100))}% · ${P.units.includes('zofia')?`🔧 수리 시도 ${st.repairAttempts}/2 · `:''}🪵 물자 ${st.supLeft}`;
     updateRepair(); if(st.supLeft!==lastActSup)renderAct(); dfDraw(ctx,st,ui); if(st.done) return finish(); raf=requestAnimationFrame(loop); };
-  const start=()=>{ ui.phase='run'; ui.sel=null; tip.innerHTML=''; st=dfCreate(P,place); try{sfx('thump');}catch(e){} renderAct();
+  const start=()=>{ S.lastFormation={...place.units}; ui.phase='run'; ui.sel=null; tip.innerHTML=''; st=dfCreate(P,place); try{sfx('thump');}catch(e){} renderAct();
     btns.innerHTML='<button id="dfFast">⏩ 2배속</button><button id="dfSkip">⏭ 결과</button>'+(P.units.includes('zofia')?'<button id="dfRepair">🔧 수리 전환</button>':'');
     updateRepair();
     if(document.getElementById('dfRepair')) document.getElementById('dfRepair').onclick=()=>{const z=st.units.find(u=>u.id==='zofia');if(!z||st.broke||st.repairAttempts>=2||st.supLeft<1)return;z.repair=!z.repair;z.cd=Math.max(z.cd,.25);updateRepair();};
@@ -2552,7 +2563,18 @@ function startGame(){
   if(readContinue()&&!confirm('이 기기에 저장된 진행 중인 도전이 있습니다. 새로 시작하면 기존 저장 기록이 삭제됩니다. 계속하시겠습니까?'))return;
   clearContinue();
   const name=$('nameInput').value.trim()||'익명'+Math.floor(1000+Math.random()*9000);
-  S=newState(name);
+  let returning=[];
+  try{const saved=JSON.parse(localStorage.getItem('RS_LAST_TEAM_'+name)||'[]');if(Array.isArray(saved))returning=ALL_IDS.filter(id=>saved.includes(id));}catch(_){}
+  if(returning.length){
+    $('startScreen').classList.add('hidden');$('endScreen').classList.add('hidden');$('gameScreen').classList.remove('hidden');
+    $('log').innerHTML='';log('다시 만나고 싶은 동료가 있나요? 새 도전은 첫날부터 시작합니다.','head');
+    choices([...returning.map(id=>({label:DF_UNITS[id].n,fn:()=>beginRun(name,id)})),{label:'네 명 모두 새로 추첨',fn:()=>beginRun(name)}]);
+    return;
+  }
+  beginRun(name);
+}
+function beginRun(name,returning){
+  S=newState(name,returning);
   $('startScreen').classList.add('hidden'); $('endScreen').classList.add('hidden'); $('gameScreen').classList.remove('hidden'); document.body.classList.add('ingame'); $('btnRec').classList.remove('hidden');
   $('log').innerHTML='';
   log(`${esc(name)}. 바스토뉴 외곽, 눈에 파묻힌 생트마리 수도원 학교. 두꺼운 돌벽과 종탑, 지하 저장고와 작은 도서관이 있는 이곳을 거점으로 삼았다.`,'story');
@@ -2584,30 +2606,38 @@ function morning(){
     log(ok('marie')?'마리가 조용히 말했다. "열병은 이 전쟁과 함께 시작됐어요. 붉은 하늘도, 분홍 눈도. 전쟁이 끝나면… 열병도 끝나지 않을까요?"':'누군가 중얼거렸다. "열병은 전쟁과 함께 왔어. 전쟁이 끝나면, 열병도 끝나지 않을까?"','story');
     log('🎯 새로운 목표: <b>유럽의 전쟁이 끝나는 날까지 살아남기.</b> 그날이 오면, 무언가가 바뀔지도 모른다.','gold');
   }
-  log(pickAlive(MORNING[ss]),'story');
+  if(S.day<=2||CHAPTERS[S.day])log(pickAlive(MORNING[ss]),'story');
   departures();
+  const losses=[];
+  const beforeStores={food:S.food,sup:S.sup,def:S.def,hp:S.hp,mo:S.mo};
   // 식량: 사람 수만큼 먹는다
   let eat = aliveMates().length>=3 ? 2 : 1;
   if(S.tactics.has('ration') && S.day%3===0){ eat--; log('배급제 원칙대로 오늘은 한 끼를 줄였다.','info'); }
   if(eat>0){
-    if(S.food>=eat){ log(`${aliveMates().length+1}명이 아침을 나눠 먹었다.`,'sys'); change({food:-eat}); }
-    else { if(S.food>0) change({food:-S.food}); log('먹을 것이 모자란다. 빈속으로 맞는 아침, 다리가 후들거리고 손끝이 떨린다.','bad'); change({hp:-14,mo:-2}); }
+    if(S.food>=eat){ change({food:-eat},true); }
+    else { if(S.food>0) change({food:-S.food},true); log('먹을 것이 모자란다. 빈속으로 맞는 아침, 다리가 후들거리고 손끝이 떨린다.','bad'); change({hp:-14,mo:-2},true); }
   }
   // 겨울 난방: 매일
-  if(knLv()>=5 && S.day%5===0 && S.mo<60)change({mo:1});
+  if(knLv()>=5 && S.day%5===0 && S.mo<60)change({mo:1},true);
   if(ss==='winter' && S.day%(knLv()>=4?4:2)===1){
-    if(S.sup>0){ log('난로에 장작을 넣었다.','sys'); change({sup:-1}); }
-    else { log('땔감이 없다. 밤새 손발이 얼어붙었다.','bad'); change({hp:-8,mo:-5}); }
-    if(S.def>2 && chance(.35)){ log('밤새 얼어붙은 바리케이드 한쪽이 갈라졌다.','sys'); change({def:-1}); }
+    if(S.sup>0){ change({sup:-1},true); }
+    else { log('땔감이 없다. 밤새 손발이 얼어붙었다.','bad'); change({hp:-8,mo:-5},true); }
+    if(S.def>2 && chance(.35)){ change({def:-1},true); }
   }
   // 겨울에는 식량 부패가 느리고 봄으로 갈수록 저장 식량 손실이 빨라진다.
   const spoilInterval=ss==='winter'?5:(S.day<65?3:2);
   if(S.food>=10 && S.day%spoilInterval===0){
     const spoiled=ss==='winter'?1:Math.min(3,Math.max(1,Math.ceil(S.food*(S.day<65?.07:.11))));
-    change({food:-spoiled});log('저장고의 일부 식량에 곰팡이가 피거나 상해 버렸다. 보관 공간과 계절을 고려해야 한다.','sys');
+    change({food:-spoiled},true);if(!S.flags.sawSpoilage){S.flags.sawSpoilage=true;log('감자 자루 밑이 물러졌다. 상한 감자를 골라냈다. 날이 풀리면 저장고를 더 자주 살펴야 한다.','story');} losses.push('부패 −'+spoiled);
   }
-  if(S.sup>=19 && S.day%7===0){change({sup:-1});log('비축한 목재 일부가 습기를 먹어 못 쓰게 되었다.','sys');}
-  if(S.def>=50 && S.day%5===0){change({def:-1});log('오래된 방어 시설 일부가 비바람과 습기로 약해졌다.','sys');}
+  if(S.sup>=19 && S.day%7===0){change({sup:-1},true);}
+  if(S.def>=50 && S.day%5===0){change({def:-1},true);}
+  const stockLine=Object.keys(beforeStores).filter(k=>S[k]!==beforeStores[k]).map(k=>NAMES[k]+' '+beforeStores[k]+' → '+S[k]);
+  log([...stockLine,...losses].join(' · ')||'아침 재고 변동 없음','sys');
+  if(S.flags.marieLetterDay && S.day>=S.flags.marieLetterDay && ok('marie')){
+    delete S.flags.marieLetterDay;log('마리가 지난번에 접어 둔 편지를 식탁에 펼쳤다. 이번에는 아버지와 같은 참호에 있던 사람들의 이름을 소리 내어 읽었다.','beat');
+    note('마리가 식탁에서 아버지의 편지를 읽었다');
+  }
   // 외출한 동료
   S.squad.forEach(m=>{ if(m.alive&&m.away){ m.away--; if(m.away<=0){ m.away=0; } } });
   if(key==='1945-03-01') log('눈이 녹기 시작했다. 질척한 땅 위에서 놈들의 걸음이 눈에 띄게 둔해졌다. 숨 돌릴 틈이 생겼다.','info');
@@ -3149,8 +3179,10 @@ function dusk(){
   const hide = ok('marie') ? '마리: "놈들은 빛과 소리를 따라와요. 불을 다 끄고 지하 저장고에 숨어 있으면 그냥 지나갈지도 몰라요."' : ok('leon') ? '레온: "놈들은 빛과 소리를 쫓네. 불을 끄고 숨을 죽이면 지나칠 수도 있지."' : '"놈들은 빛과 소리를 따라온다. 불을 끄고 숨으면 지나칠지도 모른다."';
   const fire = ok('enzo') ? '엔초: "연료와 다이너마이트가 좀 있소. 놈들이 담에 붙기 전에 앞줄부터 날려 버립시다."' : ok('jack') ? '잭: "연료가 좀 남았어. 병에 담아서, 놈들이 담에 붙기 전에 앞줄부터 태워 버리자."' : '"남은 연료로 화염병을 만들어, 놈들이 담에 닿기 전에 먼저 친다."';
   log(`${front}<br>${hide}<br>${fire}`,'story');
+  const ordinary=S.flags.dfTut && S.nextAttack>0 && S.nextAttack<14 && !S.bigWave && !['brute','hunter'].includes(S.nightType) && S.def>=10 && Object.keys(S.lastFormation||{}).sort().join()===['me',...S.squad.map(m=>m.id)].filter(id=>id==='me'?!S.quarantine:ok(id)).sort().join();
   const showStance=()=>choices([
-    {label:'🔫 정면으로 막는다',sub:`방어력 ${defPower()} (${defParts()})로 맞선다 · 막아도 방어선이 닳는다`,fn:()=>night('front')},
+    ...(ordinary?[{label:'지난 배치로 맡긴다',sub:'동료들이 같은 자리에서 자동 방어한다',fn:()=>night('front')}]:[]),
+    {label:'🔫 정면으로 막는다',sub:`방어력 ${defPower()} (${defParts()})로 맞선다 · 막아도 방어선이 닳는다`,fn:()=>night('manual')},
     {label:'🕯️ 불을 끄고 숨는다',sub:(S.nightType==='hunter'&&known)?'⚠️ 사냥꾼은 냄새로 찾아낸다 · 숨어도 들킨다 · 시도하면 다음 은신이 어려워진다':'성공하면 전투 회피 · 실패하면 방어력 절반 · 숨을수록 다음 시도가 어려워진다',fn:()=>night('hide')},
     {label:'🔥 화염병으로 먼저 친다',sub:'물자 1 소모 → 습격 규모 -3 · 불빛이 다른 무리를 부를 수도 있다',disabled:S.sup<1,fn:()=>night('fire')},
   ]);
@@ -3225,8 +3257,8 @@ function night(stance){
   log(pick(APPROACH[p<=6?'s':p<=12?'m':'l'])+` <span class="sys">(습격 규모 ${p} / 방어력 ${dp})</span>`,'story');
   const units=['me',...S.squad.map(m=>m.id)].filter(u=>u==='me'?!S.quarantine:ok(u));
   const P={nades:S.grenades||0,fires:S.sup,sup:S.sup,p,dp,nt,bruteHit,boss:!!S.bigWave,bossNeed:Math.min(6,3+Math.floor(Math.max(0,S.day-1)/25)),traps,darkNight:S.darkNight,bond:{...S.bond},units,known:S.known||S.tactics.has('enigma'),radio:ok('jack'),seed:(Date.now()+S.day*7919)%2147483647};
-  const big = S.bigWave || nt==='brute' || nt==='hunter' || p>=14 || !S.flags.dfTut;
-  if(big){ S.flags.dfTut=true; log(S.bigWave?'🗿 땅이 울린다. 이번 습격은 다르다. 모두 자리로!':'⚔️ 큰 습격이다! 모두 자리로!','bad'); } else P.auto=true;
+  const big = stance==='manual' || S.def<10 || (S.lastFormation && Object.keys(S.lastFormation).sort().join()!==[...units].sort().join()) || S.bigWave || nt==='brute' || nt==='hunter' || p>=14 || !S.flags.dfTut;
+  if(big){ S.flags.dfTut=true; log(S.bigWave?'🗿 땅이 울린다. 이번 습격은 다르다. 모두 자리로!':'⚔️ 습격이다. 오늘 방어에 나설 동료들의 자리를 확인하자.','bad'); } else P.auto=true;
   dfOpen(P,res=>nightResult(res,p,dp,nt,bruteHit));
 }
 function nightResult(res,p,dp,nt,bruteHit){
@@ -3454,6 +3486,7 @@ function peaceEnding(){
 }
 function gameOver(kind){
   if(!S||S.dead)return;
+  try{localStorage.setItem('RS_LAST_TEAM_'+S.name,JSON.stringify(S.squad.filter(m=>(S.arc[m.id]||0)<ARCS[m.id].length).map(m=>m.id)));}catch(_){}
   S.dead=true;clearContinue();$('choices').innerHTML='';updateSaveButton();checkAch();
   if(kind!=='peace'){ closeDay(kind==='quit'?'스스로 도전을 마무리했다':kind==='hp'?'기록이 여기서 끊겼다':'모두가 흩어졌다'); vignette(); }
   const hpCause = S.food<=0 ? '굶주림 — 식량이 바닥났다' : S.def<=0 ? '방어선 붕괴 — 밤의 습격' : (S.sup<=0 && season()==='winter') ? '추위와 부상 — 땔감이 바닥났다' : '부상 — 습격과 탐색에서 입은 상처';
@@ -3502,6 +3535,7 @@ function gameOver(kind){
       <h3>📖 다시 읽어 볼 기록 (틀린 문제)</h3>
       <div class="review">${S.missed.length? S.missed.map(m=>`<div><b>${m.q}</b><br><span class="good">정답: ${m.a}</span>${m.e&&!m.e.startsWith('올바른')?`<br><span class="sys">${m.e}</span>`:''}</div>`).join('') : '<div>틀린 문제가 없습니다. 완벽한 기록입니다!</div>'}</div>
       <div style="display:grid;gap:8px;margin-top:18px">
+        ${S.squad.some(m=>(S.arc[m.id]||0)<ARCS[m.id].length)?'<p class="sys">'+S.squad.filter(m=>(S.arc[m.id]||0)<ARCS[m.id].length).map(m=>esc(m.name)).join(' · ')+'의 이야기가 남아 있다. 다음 도전에서 한 명을 다시 만날 수 있다.</p>':''}
         <button class="primary" id="againBtn">다시 도전</button>
         <button id="homeBtn">처음 화면 · 랭킹 보기</button>
       </div>`;
