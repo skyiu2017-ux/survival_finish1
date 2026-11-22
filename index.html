@@ -844,7 +844,7 @@ function render(){
   $('bHp').style.width=S.hp+'%'; $('bMo').style.width=S.mo+'%';
   $('bHp').style.background=S.hp<30?'var(--red)':'var(--green)';
   $('bMo').style.background=S.mo<30?'var(--red)':'var(--accent)';
-  $('sFood').textContent=S.food+'/'+FOOD_CAP; $('sSup').textContent=S.sup+'/'+SUP_CAP; $('sDef').textContent=S.def+'/'+DEF_CAP; $('sKn').innerHTML=`${S.kn}<small style="font-size:10px;color:var(--dim);font-weight:400"> Lv${knLv()}</small>`;
+  $('sFood').textContent=S.food+'/'+FOOD_CAP; $('sSup').textContent=S.sup+'/'+SUP_CAP; $('sDef').textContent=S.def+'/'+DEF_CAP; $('sKn').innerHTML=`${S.kn}/20<small style="font-size:10px;color:var(--dim);font-weight:400"> Lv${knLv()}</small>`;
   const hurtN=S.squad.filter(m=>m.alive&&m.hurt).length, goneN=S.squad.filter(m=>!m.alive).length;
   $('btnMates').textContent=`👥 동료 ${S.squad.filter(m=>m.alive).length}명${hurtN?` · 🩹${hurtN}`:''}${goneN?` · ✝${goneN}`:''}`;
   $('btnMates').classList.toggle('warn',hurtN>0);
@@ -2496,7 +2496,7 @@ const MORNING = {
 };
 
 function morning(){
-  S.day++; S.known=false; S.actLeft=2; S.slotLog=null; S.todayActs=[]; S.request=null; S.reqDone=false;S.resumePoint=null;updateSaveButton();S.darkNight=chance(.30);
+  S.day++; S.known=false; S.knowledgeExplore=false; S.knowledgeGuard=0; S.actLeft=2; S.slotLog=null; S.todayActs=[]; S.request=null; S.reqDone=false;S.resumePoint=null;updateSaveButton();S.darkNight=chance(.30);
   render();
   const d=curDate(); const key=iso(d); const ss=season();
   if(key===END_KEY) return peaceEnding();
@@ -2589,8 +2589,8 @@ function attackPower(){
   if(S.tactics.has('buffer')) p=Math.max(1,p-1);
   return p;
 }
-function defPower(){ return Math.max(0, S.def + (ok('emil')?2:0) + (trusted('emil')?1:0) + (ok('ibra')?1:0) + (trusted('ibra')?1:0) + (S.tactics.has('enigma')?1:0) - (S.quarantine?2:0)); }
-function defParts(){ const a=[`방어선 ${S.def}`]; if(ok('emil')) a.push(trusted('emil')?'에밀 사격 +3':'에밀 사격 +2'); if(ok('ibra')) a.push(trusted('ibra')?'이브라히마 +2':'이브라히마 +1'); if(S.tactics.has('enigma')) a.push('암호 해독 +1'); if(S.quarantine) a.push('당신 격리 -2'); return a.join(' ');}
+function defPower(){ return Math.max(0, S.def + (ok('emil')?2:0) + (trusted('emil')?1:0) + (ok('ibra')?1:0) + (trusted('ibra')?1:0) + (S.tactics.has('enigma')?1:0) + (S.knowledgeGuard||0) - (S.quarantine?2:0)); }
+function defParts(){ const a=[`방어선 ${S.def}`]; if(ok('emil')) a.push(trusted('emil')?'에밀 사격 +3':'에밀 사격 +2'); if(ok('ibra')) a.push(trusted('ibra')?'이브라히마 +2':'이브라히마 +1'); if(S.tactics.has('enigma')) a.push('암호 해독 +1'); if(S.knowledgeGuard) a.push('지식 방어 교범 +'+S.knowledgeGuard+'(오늘 밤)'); if(S.quarantine) a.push('당신 격리 -2'); return a.join(' ');}
 
 const REQ={
   leon:{act:'archive',t:'"수첩의 다음 장을 같이 풀어 보세. 열병이 오기 전에 머리를 써 두어야지."',rw:{kn:2}},
@@ -2617,18 +2617,42 @@ function didAct(id){
   if(S.request && !S.reqDone && S.request.act===id){ S.reqDone=true; const m=mate(S.request.who);
     log(`📌 ${m.name.split(' ')[0]}의 부탁을 들어주었다.`,'good'); change(S.request.rw); bond(S.request.who,1,true); }
 }
-/* ---- 누적 지식(랭킹)과 현재 지식(최대 20)의 용도를 분리한다. ---- */
+/* ---- 지식 작전회의: 누적 지식(랭킹)과 소비 지식(최대 20)은 별도 ----
+   하루 한 번, 낮 행동을 소비하지 않으나 선택당 1종의 효과만 적용.
+   피해 감소/정찰/방어 예측 중 상황에 맞게 선택하게 하며, 영구 자원 생산은 없다. */
 function knowledgeTactics(){
-  const opt=(label,cost,sub,apply,disabled)=>({label,sub:`지식 ${cost} 소비 · ${sub}`,disabled:S.kn<cost||S.knUsedDay===S.day||disabled,fn:()=>{
-    if(S.kn<cost||S.knUsedDay===S.day)return;
-    S.knUsedDay=S.day;change({kn:-cost});apply();note('지식을 활용한 전술 재정비');dayPhase();
-  }});
+  if(S.knUsedDay===S.day){return dayPhase();}
+  log(`📜 작전회의 · 사용 가능 지식 ${S.kn}/20 · 하루 한 가지 · 낮 행동 소모 없음`,'info');
+  const opt=(label,cost,sub,apply,disabled)=>({
+    label,sub:`지식 ${cost} 소비 · ${sub}`,
+    disabled:S.kn<cost||S.knUsedDay===S.day||!!disabled,
+    fn:()=>{
+      if(S.kn<cost||S.knUsedDay===S.day||disabled)return dayPhase();
+      S.knUsedDay=S.day;
+      change({kn:-cost});
+      apply();
+      log(`${label} 실행 · 남은 지식 ${S.kn}/20`,'good');
+      note(`지식 ${cost} 소비: ${label}`);
+      dayPhase();
+    }
+  });
   choices([
-    opt('📜 암호지도로 습격 규모 파악',5,'정찰 없이 오늘 밤 규모 확인',()=>{S.known=true;render();},S.known||S.tactics.has('enigma')),
-    opt('📜 작전 재정비',8,'사기 +4 · 사기가 65 미만일 때',()=>change({mo:4}),S.mo>=65),
-    opt('📜 응급 방어 계획',7,'방어선 +2 · 방어선이 30 미만일 때',()=>change({def:2}),S.def>=30),
-    opt('📜 야전 치료 지식',6,'체력 +9 · 체력이 60 미만일 때',()=>change({hp:9}),S.hp>=60),
-    {label:'↩ 돌아간다',cls:'ghost',fn:dayPhase}
+    opt('📡 암호 해독 · 야간 정찰',3,'오늘 밤 규모와 특수 감염자 확인',()=>{
+      S.known=true;render();
+    },S.known||S.tactics.has('enigma')),
+    opt('🗺️ 지형 분석 · 탐색 준비',4,'다음 탐색 부상 확률 15%p 감소 (오늘만)',()=>{
+      S.knowledgeExplore=true;
+    },(S.todayActs||[]).includes('explore')||S.actLeft<1),
+    opt('🛡️ 방어 교범 · 야간 대응',5,'오늘 밤 방어력 +6 (영구 방어선 증가 아님)',()=>{
+      S.knowledgeGuard=6;render();
+    },S.nextAttack<=0),
+    opt('🩺 야전 의술 · 응급 치료',5,'체력 +10 (체력 75 미만)',()=>{
+      change({hp:10});
+    },S.hp>=75),
+    opt('🤝 전쟁사 교훈 · 사기 회복',6,'사기 +7 (사기 60 미만)',()=>{
+      change({mo:7});
+    },S.mo>=60),
+    {label:'↩ 작전회의 취소',cls:'ghost',fn:dayPhase}
   ]);
 }
 function dayPhase(){
@@ -2638,7 +2662,7 @@ function dayPhase(){
   const hurt=S.squad.filter(m=>m.alive&&m.hurt);
   const heal=ok('marie')?26:22;
   choices([
-    {label:'📜 지식 활용 · 작전회의',sub:S.knUsedDay===S.day?'오늘은 이미 실행했다':`보유 지식 ${S.kn}/20 · 하루 한 번, 행동 소모 없음`,disabled:S.knUsedDay===S.day||S.kn<5,fn:knowledgeTactics},
+    {label:'📜 지식 활용 · 작전회의',sub:S.knUsedDay===S.day?'오늘은 이미 실행했다':`보유 지식 ${S.kn}/20 · 정찰 3 / 탐색 4 / 방어·치료 5 / 사기 6 · 낮 행동 소모 없음`,disabled:S.knUsedDay===S.day||S.kn<3,fn:knowledgeTactics},
     {label:'🔦 탐색 나가기',sub:done('explore')?'오늘은 이미 다녀왔다':'식량·물자(장작)를 구한다 · 부상 위험',fn:explorePick,disabled:done('explore')},
     {label:'🛠️ 방어 공사',sub:done('build')?'오늘은 이미 했다':`${tag('build')}방어선을 쌓는다 (현재 ${S.def})`,fn:buildPick,disabled:done('build')},
     {label:'📓 헤이스팅스 대위의 수첩 해독',sub:done('archive')?'오늘은 이미 했다':`${tag('archive')}문제를 풀어 은닉처를 찾는다 · 틀리면 허탕`,fn:()=>{didAct('archive');archive();},disabled:done('archive')},
@@ -2670,7 +2694,7 @@ const HURT_LINES = [
   '문을 열자마자 악취와 함께 손들이 뻗어 나왔다. 문을 걷어차 닫고 물러났다.',
 ];
 const SAFE_LINES = ['숨소리마저 죽이며 움직였다. 다행히 아무것도 마주치지 않았다.','멀리서 신음 같은 소리가 들렸지만, 놈들은 이쪽을 눈치채지 못했다.','햇빛이 가장 강한 정오를 골라 움직인 덕분에 무사했다.'];
-function exploreRisk(p){const base=Math.min(.82,p.r+S.day*.0035*(.5+p.r));let risk=S.tactics.has('resist')?base*.7:base;if(trusted('yusuf'))risk*=.8;if(knLv()>=3)risk*=.85;return risk;}
+function exploreRisk(p){const base=Math.min(.82,p.r+S.day*.0035*(.5+p.r));let risk=S.tactics.has('resist')?base*.7:base;if(trusted('yusuf'))risk*=.8;if(knLv()>=3)risk*=.85;if(S.knowledgeExplore)risk=Math.max(.02,risk-.15);return risk;}
 function explorePick(){
   log('어디로 나갈까?');
   const rg=a=>a[0]===a[1]?`${a[0]}`:`${a[0]}~${a[1]}`;
@@ -2688,6 +2712,7 @@ function explore(p){
   didAct('explore');
   log(`${J(p.n,'으로')} 향했다. ${p.d}`,'story');
   const risk=exploreRisk(p);
+  if(S.knowledgeExplore){log('🗺️ 지형 분석으로 위험한 동선을 피해 움직였다. 부상 위험이 줄어들었다.','info');S.knowledgeExplore=false;}
   let hurt=false;
   if(chance(risk)){ hurt=true; log(pick(HURT_LINES),'bad'); change({hp:-rnd(p.h[0],p.h[1])}); }
   else log(pick(SAFE_LINES));
