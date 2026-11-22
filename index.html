@@ -146,7 +146,7 @@ th{color:var(--dim);font-weight:400}
 </head>
 <body>
 <div id="vig"></div><canvas id="snow"></canvas>
-<div id="dfModal" class="hidden"><div id="dfStage"><canvas id="dfCanvas" width="320" height="180"></canvas><div id="dfTop"></div><div id="dfBtns"></div><div id="dfTip"></div><div id="dfAct"></div><div id="dfBoss" class="hidden"></div></div>
+<div id="dfModal" class="hidden"><div id="dfStage"><canvas id="dfCanvas" width="960" height="540"></canvas><div id="dfTop"></div><div id="dfBtns"></div><div id="dfTip"></div><div id="dfAct"></div><div id="dfBoss" class="hidden"></div></div>
 <div id="dfRotate" class="hidden"><div style="font-size:54px">📱↻</div><b>휴대폰을 가로로 돌려 주세요</b><span class="sys">습격 장면은 가로 화면에서 펼쳐집니다.</span><button class="ghost" id="dfRotSkip">세로로 그냥 할게요</button></div></div>
 <div id="recModal" class="hidden"><div id="recCard"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b class="gold">기록</b><button class="hbtn" id="recClose">닫기 ✕</button></div><div id="recBody" style="display:flex;flex-direction:column;min-height:0;flex:1"></div></div></div>
 <div class="wrap">
@@ -170,6 +170,7 @@ th{color:var(--dim);font-weight:400}
       <p><b>이어하기</b> — 오전·오후 행동 선택 화면의 '저장 후 나가기'로 보관한다. 같은 기기·브라우저에서 이어할 수 있지만, 불러온 저장 기록은 바로 소비된다. 사망·종전·기록 종료 뒤에는 이어할 수 없다. 서버에 별도 저장하지 않는다.</p>
       <p><b>밤의 날씨와 탐색</b> — 밤마다 하늘이 변한다. 달빛 없는 흐린 밤은 숨기 좋지만 화염병 불빛은 더 눈에 띈다. 반복해서 탐색한 장소는 남은 자원이 줄며, 바스토뉴 보급창 원정은 한 번만 성공적으로 방문할 수 있다.</p>
       <p><b>동료 배치</b> — 종탑은 긴 사거리와 단발 위력이 장점이지만 발사가 느리다. 왼쪽 창가는 빠른 사격, 오른쪽 창가는 넓은 폭발 공격, 바리케이드는 가까운 적 공격과 근접 저지가 강점이다. 신뢰가 높은 동료는 공격 속도와 위력이 소폭 높아진다. 단 하나의 고정 정답 위치는 없다.</p>
+      <p><b>고해상도 전투 화면</b> — 960×540 픽셀 캔버스와 400×470 스프라이트 원본을 적용한다. 모바일에서는 가로 화면을 권장한다. 다운로드 실패 시 기존 전투 그래픽이 나타난다.</p>
       <p><b>전투 투척물</b> — 수류탄은 처음 3개만 주어지며, 쓰면 없어지고 탐색·수첩·원정에서 드물게 찾아야 한다. 화염병은 별도 재고가 아니라 <b>현재 물자 1개를 소비</b>해 던진다. 전투에서 두 버튼 중 하나를 선택하고 감염자가 모인 눈밭을 누르자.</p>
       <p><b>거점 보관 한도</b> — 식량 최대 24, 물자 최대 24, 방어선 최대 65. 저장고에 들어가지 않는 보급품은 더 쌓이지 않는다. 식량은 추운 겨울에는 늦게, 따뜻해지는 봄에는 더 빠르게 상한다. 방어 시설도 오랜 시간 방치하면 조금씩 마모된다.</p>
       <p><b>방어 공사</b> — 바리케이드는 빠르고 저렴하다. 참호와 모래주머니는 물자가 더 들지만 방어선을 크게 강화한다. 함정은 한 번 설치하면 실제 발동한 밤 기준 최대 2회 유지되며, 아무도 오지 않거나 은신에 성공한 밤에는 소모되지 않는다.</p>
@@ -1989,6 +1990,9 @@ function dfHeadless(P,place){ const st=dfCreate(P,place); let next=0;
    The original sprites remain as fallback when the art file is unavailable. */
 const RS_ART=(()=>{
   const im=new Image();let ready=false;
+  const scenery=new Image();let sceneReady=false;
+  scenery.onload=()=>{sceneReady=true;};scenery.onerror=()=>{sceneReady=false;};
+  scenery.src='assets/battle_bg_hd.webp?v=960x540-20261122';
   im.onload=()=>{ready=true;};im.onerror=()=>{ready=false;};
   im.src='assets/battle_atlas.webp?v=400x470-20261122';
   const actors=['me','emil','jack','marie','leon','yusuf','ibra','zofia','enzo'];
@@ -1998,6 +2002,15 @@ const RS_ART=(()=>{
   }
   return {
     loaded:()=>ready,
+    bgHigh:(ctx,weather)=>{
+      if(!sceneReady||!scenery.naturalWidth)return false;
+      try{
+        ctx.save();ctx.imageSmoothingEnabled=true;
+        ctx.drawImage(scenery,0,0,ctx.canvas.width,ctx.canvas.height);
+        if(weather==='moon'){ctx.fillStyle='rgba(8,15,35,.18)';ctx.fillRect(0,0,ctx.canvas.width,ctx.canvas.height);}
+        ctx.restore();return true;
+      }catch(_){return false;}
+    },
     bg:(ctx,weather)=>{
       const ok=crop(ctx,0,0,320,180,0,0,320,180);
       if(ok && weather==='moon'){ctx.fillStyle='rgba(8,15,29,.16)';ctx.fillRect(0,0,320,180);}
@@ -2078,9 +2091,13 @@ function dfPaintBg(c,mode){
 /* ---------- 그림: 매 프레임 ---------- */
 function dfDraw(ctx,st,ui){
   const G=dfAssets(); const t=st.t;
-  ctx.save();
+  const artScale=ctx.canvas.width/DF.W;
+  ctx.save();ctx.setTransform(1,0,0,1,0,0);
+  const hiBg=RS_ART.bgHigh(ctx,st.weather);
+  ctx.restore();
+  ctx.save();ctx.setTransform(artScale,0,0,artScale,0,0);
   if(st.shake>0){ ctx.translate(Math.round((Math.random()-.5)*4*st.shake),Math.round((Math.random()-.5)*3*st.shake)); }
-  if(!RS_ART.bg(ctx,st.weather)) ctx.drawImage(G.bgs[st.weather]||G.bg,0,0);
+  if(!hiBg && !RS_ART.bg(ctx,st.weather)) ctx.drawImage(G.bgs[st.weather]||G.bg,0,0);
   if(st.weather==='moon'){ ctx.fillStyle='rgba(170,200,255,.10)'; ctx.fillRect(0,124,320,56); }
   // 덫
   st.traps.forEach(tp=>{ if(tp.uses<=0) return; ctx.fillStyle=OUT; ctx.fillRect(tp.x-6,171,13,4); ctx.fillStyle='#6b7078'; ctx.fillRect(tp.x-5,172,11,2); ctx.fillStyle='#a8aeb6'; for(let k=0;k<4;k++) ctx.fillRect(tp.x-5+k*3,168,1,4);
@@ -2134,11 +2151,13 @@ function dfDraw(ctx,st,ui){
   else { for(let i=0;i<260;i++){ const big=i%4===0, sp=big?26:15; const x=((i*53+t*(sp*.9+i%7))%340)-10, y=(i*37+t*(sp+i%9))%180; ctx.fillStyle=big?'rgba(255,255,255,.95)':'rgba(235,240,250,.7)'; ctx.fillRect(Math.floor(x),Math.floor(y),big?2:1,big?2:1); }
     ctx.fillStyle='rgba(230,235,245,.08)'; ctx.fillRect(0,0,320,180); }
   ctx.restore();
+  ctx.save();ctx.setTransform(artScale,0,0,artScale,0,0);
   if(ui&&ui.phase==='run'&&ui.arm&&ui.aim){ const ax=Math.round(Math.max(104,ui.aim.x)); ctx.strokeStyle=ui.arm==='nade'?'rgba(255,220,90,.9)':'rgba(255,120,50,.9)'; ctx.lineWidth=1; ctx.beginPath(); ctx.ellipse(ax,160,ui.arm==='nade'?26:22,8,0,0,Math.PI*2); ctx.stroke(); }
   // 아래 카드 (배치 단계)
   if(ui&&ui.phase==='place'){ ui.cards.forEach((c,i)=>{ const x=4+i*24, y=154; frame(ctx,x,y,22,24, ui.sel===c?'#fff2a0':'#f3dfb2');
       if(c==='trap'){ ctx.fillStyle='#6b7078'; ctx.fillRect(x+5,y+15,12,3); ctx.fillStyle='#a8aeb6'; for(let k=0;k<4;k++) ctx.fillRect(x+6+k*3,y+10,1,5); num(ctx,String(st.traps.length),x+15,y+4,'#ffffff'); }
       else pdraw(ctx,G.u[c],x+3,y+4); }); }
+  ctx.restore();
 }
 function performanceNow(){ return (typeof performance!=='undefined'&&performance.now)?performance.now():Date.now(); }
 
