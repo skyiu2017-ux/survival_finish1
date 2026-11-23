@@ -6,22 +6,44 @@
 const canvas=document.querySelector('canvas'), ctx=canvas.getContext('2d');
 const hud=document.querySelector('#hud'), message=document.querySelector('#message'), action=document.querySelector('#action'), leave=document.querySelector('#leave');
 const embedded=parent!==window, ground=261, playerX=122, duration=20;
+const locations={"crypt": "성당 지하 납골당", "barn": "외딴 농가 헛간", "cabin": "숲속 사냥꾼 오두막", "bakery": "마을 빵집", "mill": "강가의 제재소", "station": "바스토뉴 기차역", "wreck": "불탄 독일군 반궤도 차량", "depot": "버려진 미군 보급소", "aid": "미군 야전 구호소"};
+const requested=new URLSearchParams(location.search).get('place');
+const place=Object.hasOwn(locations,requested)?requested:'station';
+const placeName=locations[place];
+document.querySelector('h1').textContent=placeName;
+document.title='붉은 눈 · '+placeName;
+canvas.setAttribute('aria-label',placeName+' 직접 탐색. 터치 또는 스페이스바로 점프');
+const reducedMotion=window.matchMedia('(prefers-reduced-motion: reduce)');
 const background=new Image(), atlas=new Image();
 const sprites={"run0": [0, 0, 35, 48], "run1": [152, 0, 38, 49], "run2": [304, 0, 39, 49], "run3": [456, 0, 38, 48], "walk0": [608, 0, 29, 44], "walk1": [760, 0, 31, 45], "fast0": [912, 0, 45, 39], "fast1": [1064, 0, 42, 38], "big0": [1216, 0, 50, 57], "big1": [1368, 0, 43, 56], "wire": [1520, 0, 141, 46], "truck": [1672, 0, 146, 74], "drums": [1824, 0, 78, 42], "ruin": [1976, 0, 108, 91], "pine": [2128, 0, 69, 104], "window": [2280, 0, 119, 94], "door": [2432, 0, 72, 77], "pile": [2584, 0, 75, 47], "tower": [2736, 0, 62, 105], "sand": [2888, 0, 153, 47]};
 const kinds=[
   {id:'drums',w:48,h:32},{id:'wire',w:75,h:30},{id:'ruin',w:55,h:46},
   {id:'truck',w:89,h:46},{id:'walk',w:35,h:54},{id:'fast',w:47,h:37},{id:'big',w:45,h:65}
 ];
-// A compact sequence alternates quick hops and longer jumps. Centers are in seconds.
-const course=[0,1,4,2,5,3,0,4,1,6,2,5,0,3,4,1,6,5,0,2];
-const arrivals=[1.36,2.35,3.30,4.26,5.18,6.20,7.13,8.01,8.96,9.96,10.90,11.84,12.71,13.74,14.69,15.61,16.60,17.58,18.47,19.45];
+// Each three-obstacle phrase fits the longest jump plus a recovery interval.
+const count=22;
+const props={crypt:['ruin','drums'],barn:['pile','drums'],cabin:['pile','ruin'],bakery:['drums','ruin'],mill:['pile','drums'],station:['truck','wire','drums'],wreck:['truck','wire','ruin'],depot:['sand','drums','truck'],aid:['sand','wire','drums']};
+kinds.push({id:'pile',w:59,h:32},{id:'sand',w:71,h:26});
+function makeCourse(){
+ const pool=props[place],pick=list=>list[Math.floor(Math.random()*list.length)];
+ let at=1.30,phrase=[];
+ return Array.from({length:count},(_,i)=>{
+   if(i%3===0)phrase=pick([[.78,.81,1.01],[.81,.76,1.03],[.76,.86,.98]]);
+   const id=i%3===1?pick(['fast','walk','big']):pick(pool);
+   const obstacle={kind:kinds.findIndex(k=>k.id===id),at,hit:false,passed:false};
+   at+=phrase[i%3];return obstacle;
+ });
+}
+let best=0,impactAt=-10;
+const bestKey='rs-explore-best-v1-'+place;
+try{best=Math.max(0,Math.min(count,Number(localStorage.getItem(bestKey))||0));}catch{}
 const distance=t=>323*t+3.5*t*t;
 let mode,time,height,velocity,held,airtime,clears,obstacles,last,frame,reported;
 function bonus(){return clears>=15?2:clears>=7?1:0;}
 function reset(){
  mode='ready';time=height=velocity=airtime=clears=0;held=reported=false;last=null;
- obstacles=course.map((kind,i)=>({kind,at:arrivals[i],hit:false,passed:false}));
- message.textContent='짧게 누르면 낮은 점프 · 꾹 누르면 높은 점프   |   7개 통과 +1 · 15개 통과 +2';
+ impactAt=-10;obstacles=makeCourse();
+ message.textContent='짧게 누르면 낮은 점프 · 꾹 누르면 높은 점프   |   7개 통과 +1 · 15개 통과 +2'+(best?' · 이 장소 최고 '+best+'개':'');
  action.textContent='도전 시작';leave.hidden=!embedded;draw();
 }
 function jump(){
@@ -34,7 +56,14 @@ function release(){
 }
 function start(){mode='run';action.textContent='점프';last=null;frame=requestAnimationFrame(tick);}
 function press(){if(mode==='ready')start();else jump();}
-function finish(){mode='end';held=false;message.textContent=course.length+'개 중 '+clears+'개 통과 · 추가 물자 +'+bonus();action.textContent=embedded?'물자 챙겨 귀환':'다시 도전';leave.hidden=true;}
+function finish(){
+ mode='end';held=false;
+ const improved=clears>best;
+ best=Math.max(best,clears);
+ try{localStorage.setItem(bestKey,String(best));}catch{}
+ message.textContent=count+'개 중 '+clears+'개 통과 · '+(improved?'새 최고 기록':'장소 최고 '+best+'개')+' · 추가 보급 +'+bonus();
+ action.textContent=embedded?(bonus()?'귀환 · 보급품 선택':'귀환'):'다시 도전';leave.hidden=true;
+}
 function send(value){if(reported)return;reported=true;cancelAnimationFrame(frame);parent.postMessage({type:'station-complete',bonus:value},'*');}
 leave.onclick=()=>send(0);
 action.onclick=e=>{
@@ -64,7 +93,7 @@ function step(dt){
  }
  for(const o of obstacles){
    const k=kinds[o.kind],dx=distance(o.at)-distance(time);
-   if(!o.passed&&!o.hit&&Math.abs(dx)<k.w*.37+7&&height<k.h*.88){o.hit=true;}
+   if(!o.passed&&!o.hit&&Math.abs(dx)<k.w*.37+7&&height<k.h*.88){o.hit=true;impactAt=time;}
    if(!o.passed&&dx+k.w/2< -9){o.passed=true;if(!o.hit)clears++;}
  }
 }
@@ -82,6 +111,8 @@ function sprite(id,x,y,w,h,mirror=false){
 function shadow(x,y,w){ctx.fillStyle='rgba(48,49,54,.38)';ctx.beginPath();ctx.ellipse(x,y,w,3,0,0,Math.PI*2);ctx.fill();}
 function draw(){
  const d=distance(time),W=canvas.width,H=canvas.height;
+ const age=time-impactAt, recoil=Math.max(0,1-age/.38), shake=reducedMotion.matches?0:Math.max(0,1-age/.20);
+ ctx.save();ctx.translate(6*shake*Math.cos(age*121),3*shake*Math.sin(age*154));
  ctx.imageSmoothingEnabled=true;ctx.fillStyle='#6a737a';ctx.fillRect(0,0,W,H);
  if(background.naturalWidth){
    const pan=d*.24%1000;
@@ -93,13 +124,22 @@ function draw(){
  const beat=Math.floor(time*7)%2;
  for(const o of obstacles){
   const k=kinds[o.kind],x=playerX+distance(o.at)-d;if(x< -80||x>W+90)continue;
-  const infected=o.kind>=4;shadow(x,ground,k.w*.42);ctx.save();if(o.hit)ctx.globalAlpha=.53;
+  const infected=o.kind>=4 && o.kind<=6;shadow(x,ground,k.w*.42);ctx.save();if(o.hit)ctx.globalAlpha=.53;
   sprite(infected?k.id+beat:k.id,x,ground-(infected?beat:0),k.w,k.h,infected);ctx.restore();
  }
- shadow(playerX,ground,Math.max(9,19-height*.08));
- sprite('run'+(height>0?2:Math.floor(time*10)%4),playerX,ground-height,45,60);
- for(let i=0;i<42;i++){const x=((i*193-time*(22+i%9))%W+W)%W,y=(i*73+time*(16+i%11))%H;ctx.fillStyle='rgba(240,238,223,.48)';ctx.fillRect(x,y,2,2);}
- hud.textContent=(duration-time).toFixed(1)+'초 · 통과 '+clears+'/'+course.length;
+ const foot=ground-height;
+ ctx.save();ctx.translate(playerX-12*recoil,foot);ctx.rotate(-.32*recoil);
+ ctx.scale(1+.1*recoil,1-.22*recoil);
+ sprite('run'+(recoil>.2?0:height>0?2:Math.floor(time*10)%4),0,0,45,60);
+ ctx.restore();
+ if(recoil>0){
+   ctx.fillStyle='rgba(244,213,158,'+recoil+')';
+   for(let i=0;i<9;i++){const angle=i*.62-2.7,r=6+age*(55+i*6);ctx.fillRect(playerX+8+Math.cos(angle)*r,foot-24+Math.sin(angle)*r,3,2);}
+ }
+ if(place!=='crypt')for(let i=0;i<42;i++){const x=((i*193-time*(22+i%9))%W+W)%W,y=(i*73+time*(16+i%11))%H;ctx.fillStyle='rgba(240,238,223,.48)';ctx.fillRect(x,y,2,2);}
+ ctx.restore();
+ if(recoil>0){ctx.strokeStyle='rgba(194,100,73,'+recoil*.78+')';ctx.lineWidth=6;ctx.strokeRect(2,2,W-4,H-4);}
+ hud.textContent=(duration-time).toFixed(1)+'초 · 통과 '+clears+'/'+count+(mode==='run'?(clears<7?' · 보급까지 '+(7-clears):clears<15?' · 두 번째 보급까지 '+(15-clears):' · 보급 +2 확보'):'');
 }
-background.onload=atlas.onload=draw;background.src='assets/bastogne-platform.webp';atlas.src='assets/station-sprites.webp';reset();
+background.onload=atlas.onload=draw;background.src=place==='station'?'assets/bastogne-platform.webp':'assets/explore-'+place+'.webp';atlas.src='assets/station-sprites.webp';reset();
 </script></html>
