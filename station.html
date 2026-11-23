@@ -26,11 +26,14 @@ const props={crypt:['ruin','drums'],barn:['pile','drums'],cabin:['pile','ruin'],
 kinds.push({id:'pile',w:59,h:32},{id:'sand',w:71,h:26});
 function makeCourse(){
  const pool=props[place],pick=list=>list[Math.floor(Math.random()*list.length)];
+ const rushSlots=[pick([5,6]),pick([9,10]),pick([13,14])];
+ if(Math.random()<.5)rushSlots.push(pick([16,17]));
  let at=1.30,phrase=[];
  return Array.from({length:count},(_,i)=>{
    if(i%3===0)phrase=pick([[.78,.81,1.01],[.81,.76,1.03],[.76,.86,.98]]);
-   const id=i%3===1?pick(['fast','walk','big']):pick(pool);
-   const obstacle={kind:kinds.findIndex(k=>k.id===id),at,hit:false,passed:false};
+   const rush=rushSlots.includes(i);
+   const id=rush?'fast':i%3===1?pick(['fast','walk','big']):pick(pool);
+   const obstacle={kind:kinds.findIndex(k=>k.id===id),at,rush,hit:false,passed:false};
    at+=phrase[i%3];return obstacle;
  });
 }
@@ -84,6 +87,12 @@ window.addEventListener('keydown',e=>{if(e.code==='Space'&&mode!=='end'&&documen
 window.addEventListener('keyup',e=>{if(e.code==='Space'){release();}});
 window.addEventListener('blur',release);
 document.addEventListener('visibilitychange',()=>{release();last=null;});
+function obstacleOffset(o){
+ const remaining=o.at-time;
+ // A runner closes faster than the scrolling terrain, accelerating in its last half-second.
+ const lunge=o.rush?remaining*165+Math.max(-.55,Math.min(.55,remaining))*145:0;
+ return distance(o.at)-distance(time)+lunge;
+}
 function step(dt){
  time=Math.min(duration,time+dt);
  if(height>0){
@@ -92,7 +101,7 @@ function step(dt){
    if(height===0)velocity=0;
  }
  for(const o of obstacles){
-   const k=kinds[o.kind],dx=distance(o.at)-distance(time);
+   const k=kinds[o.kind],dx=obstacleOffset(o);
    if(!o.passed&&!o.hit&&Math.abs(dx)<k.w*.37+7&&height<k.h*.88){o.hit=true;impactAt=time;}
    if(!o.passed&&dx+k.w/2< -9){o.passed=true;if(!o.hit)clears++;}
  }
@@ -123,9 +132,14 @@ function draw(){
  }
  const beat=Math.floor(time*7)%2;
  for(const o of obstacles){
-  const k=kinds[o.kind],x=playerX+distance(o.at)-d;if(x< -80||x>W+90)continue;
+  const k=kinds[o.kind],x=playerX+obstacleOffset(o);if(x< -80||x>W+90)continue;
   const infected=o.kind>=4 && o.kind<=6;shadow(x,ground,k.w*.42);ctx.save();if(o.hit)ctx.globalAlpha=.53;
-  sprite(infected?k.id+beat:k.id,x,ground-(infected?beat:0),k.w,k.h,infected);ctx.restore();
+  const stride=o.rush?Math.floor(time*15)%2:beat;
+  if(o.rush&&!o.passed){
+    ctx.strokeStyle='#e2af77';ctx.lineWidth=2;
+    for(let i=0;i<2;i++){ctx.beginPath();ctx.moveTo(x+19,ground-13-i*6);ctx.lineTo(x+31+i*5,ground-15-i*6);ctx.stroke();}
+  }
+  sprite(infected?k.id+stride:k.id,x,ground-(infected?stride:0),k.w,k.h,infected);ctx.restore();
  }
  const foot=ground-height;
  ctx.save();ctx.translate(playerX-12*recoil,foot);ctx.rotate(-.32*recoil);
@@ -139,6 +153,10 @@ function draw(){
  if(place!=='crypt')for(let i=0;i<42;i++){const x=((i*193-time*(22+i%9))%W+W)%W,y=(i*73+time*(16+i%11))%H;ctx.fillStyle='rgba(240,238,223,.48)';ctx.fillRect(x,y,2,2);}
  ctx.restore();
  if(recoil>0){ctx.strokeStyle='rgba(194,100,73,'+recoil*.78+')';ctx.lineWidth=6;ctx.strokeRect(2,2,W-4,H-4);}
+ if(mode==='run'&&obstacles.some(o=>o.rush&&o.at-time>0&&o.at-time<1.35)){
+   ctx.fillStyle='#382824';ctx.fillRect(W-164,12,152,32);
+   ctx.fillStyle='#ffd09a';ctx.font='bold 19px system-ui';ctx.fillText('⚠ 감염자 돌진',W-154,35);
+ }
  hud.textContent=(duration-time).toFixed(1)+'초 · 통과 '+clears+'/'+count+(mode==='run'?(clears<7?' · 보급까지 '+(7-clears):clears<15?' · 두 번째 보급까지 '+(15-clears):' · 보급 +2 확보'):'');
 }
 background.onload=atlas.onload=draw;background.src=place==='station'?'assets/bastogne-platform.webp':'assets/explore-'+place+'.webp';atlas.src='assets/station-sprites.webp';reset();
