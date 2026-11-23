@@ -3542,7 +3542,7 @@ function yieldRange(p){ const visits=(S.exploreVisits||{})[p.n]||0;const sc=scar
 function stationChoice(p){
   choices([
     {label:'자동 탐색',sub:'기존 탐색 보상',fn:()=>explore(p)},
-    {label:'🚉 직접 탐색 · 20초',sub:'터치 또는 스페이스바로 점프 · 4개 통과 물자 +1 / 9개 통과 +2',fn:()=>{
+    {label:'🚉 직접 탐색 · 20초',sub:'짧게 또는 길게 눌러 점프 · 7개 통과 물자 +1 / 15개 통과 +2',fn:()=>{
       const box=$('choices'), frame=document.createElement('iframe');
       frame.title='바스토뉴 기차역 장애물 달리기';frame.src='station.html';
       frame.style.cssText='width:100%;height:clamp(300px,56vw,445px);border:0;grid-column:1/-1';
