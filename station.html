@@ -43,7 +43,7 @@ function makeCourse(){
    else id=i%2===0?pick(['big','walk']):pick(pool);
    const group=Math.floor((i-7)/4);
    const offset=i>=7&&((i-7)%4)<=1?shifts[group]:0;
-   return {kind:kinds.findIndex(k=>k.id===id),at:center+offset+(Math.random()-.5)*.035,rush,hit:false,passed:false};
+   return {kind:kinds.findIndex(k=>k.id===id),scale:i<7?1:i<15?1.08:1.15,at:center+offset+(Math.random()-.5)*.035,rush,hit:false,passed:false};
  });
 }
 let best=0,impactAt=-10;
@@ -111,8 +111,8 @@ function step(dt){
  }
  for(const o of obstacles){
    const k=kinds[o.kind],dx=obstacleOffset(o);
-   if(!o.passed&&!o.hit&&Math.abs(dx)<k.w*.37+7&&height<k.h*.88){o.hit=true;impactAt=time;}
-   if(!o.passed&&dx+k.w/2< -9){o.passed=true;if(!o.hit)clears++;}
+   if(!o.passed&&!o.hit&&Math.abs(dx)<k.w*o.scale*.37+7&&height<k.h*o.scale*.88){o.hit=true;impactAt=time;}
+   if(!o.passed&&dx+k.w*o.scale/2< -9){o.passed=true;if(!o.hit)clears++;}
  }
 }
 function tick(now){
@@ -148,7 +148,7 @@ function draw(){
     ctx.strokeStyle='#e2af77';ctx.lineWidth=2;
     for(let i=0;i<2;i++){ctx.beginPath();ctx.moveTo(x+19,ground-13-i*6);ctx.lineTo(x+31+i*5,ground-15-i*6);ctx.stroke();}
   }
-  sprite(infected?k.id+stride:k.id,x,ground-(infected?stride:0),k.w,k.h,infected);ctx.restore();
+  sprite(infected?k.id+stride:k.id,x,ground-(infected?stride:0),k.w*o.scale,k.h*o.scale,infected);ctx.restore();
  }
  const foot=ground-height;
  ctx.save();ctx.translate(playerX-12*recoil,foot);ctx.rotate(-.32*recoil);
@@ -165,7 +165,7 @@ function draw(){
  const incoming=mode==='run'&&obstacles.find(o=>o.rush&&o.at-time>-.08&&o.at-time<1.55);
  document.querySelector('#rushAlert').hidden=!incoming;
  if(incoming){
-   const x=Math.min(W-22,Math.max(playerX,playerX+obstacleOffset(incoming))),y=ground-56;
+   const x=Math.min(W-22,Math.max(playerX,playerX+obstacleOffset(incoming))),y=ground-kinds[incoming.kind].h*incoming.scale-19;
    ctx.fillStyle='#ffba60';ctx.strokeStyle='#401f19';ctx.lineWidth=2;
    ctx.beginPath();ctx.moveTo(x-7,y-10);ctx.lineTo(x+7,y-10);ctx.lineTo(x,y);ctx.closePath();ctx.fill();ctx.stroke();
  }
