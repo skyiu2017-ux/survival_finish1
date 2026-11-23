@@ -3542,9 +3542,9 @@ function yieldRange(p){ const visits=(S.exploreVisits||{})[p.n]||0;const sc=scar
 function explorationChoice(p){
   choices([
     {label:'자동 탐색',sub:'기존 탐색 보상',fn:()=>explore(p)},
-    {label:'🏃 직접 탐색 · 20초',sub:'7개 통과 +1 / 15개 통과 +2 · 식량 또는 물자 선택 · 22개 모두 통과하면 무작위 +1',fn:()=>{
+    {label:'🏃 직접 탐색 · 20초',sub:'7개 통과 +1 / 15개 통과 +2 · 식량·물자 무작위 지급 · 22개 모두 통과하면 무작위 +1',fn:()=>{
       const box=$('choices'), frame=document.createElement('iframe');
-      frame.title=p.n+' 직접 탐색';frame.src='station.html?v=perfect1&place='+encodeURIComponent(p.scene);
+      frame.title=p.n+' 직접 탐색';frame.src='station.html?v=loot2&place='+encodeURIComponent(p.scene);
       frame.style.cssText='width:100%;height:clamp(300px,56vw,445px);border:0;grid-column:1/-1';
       box.replaceChildren(frame);
       const run=S;
@@ -3553,19 +3553,13 @@ function explorationChoice(p){
         window.removeEventListener('message',receive);frame.remove();
         if(S!==run||S.dead)return;
         const amount=e.data.bonus;
-        if(!amount)return explore(p);
-        const perfectSupply=amount===2&&e.data.perfect===true?pick(['food','sup']):null;
-        if(perfectSupply)log('완벽 탐색! 추가로 '+NAMES[perfectSupply]+' 1개를 발견했다.','good');
-        choices([
-          {label:'🥫 식량 +'+amount,sub:'기본 탐색 보상에 추가',fn:()=>explore(p,amount,'food',perfectSupply)},
-          {label:'🪵 물자 +'+amount,sub:'기본 탐색 보상에 추가',fn:()=>explore(p,amount,'sup',perfectSupply)}
-        ]);
+        explore(p,amount+(amount===2&&e.data.perfect===true?1:0));
       }
       window.addEventListener('message',receive);frame.onload=()=>frame.focus();
     }}
   ]);
 }
-function explore(p,extra=0,resource='sup',perfectSupply=null){
+function explore(p,extra=0){
   S.exploreLast=S.exploreLast||{};
   if(S.exploreLast[p.n]!=null&&S.day-S.exploreLast[p.n]<=4){log('아직 탐색한 지 4일이 지나지 않았다.','sys');return explorePick();}
   S.exploreLast[p.n]=S.day;
@@ -3579,8 +3573,12 @@ function explore(p,extra=0,resource='sup',perfectSupply=null){
   const scarce=scarceNow();
   if((scarce>0||(S.exploreVisits||{})[p.n]>2) && chance(.5)) log('날이 갈수록 쓸 만한 것이 줄어든다. 이미 뒤진 곳은 더 쉽게 비어 버린다.','sys');
   const yr=yieldRange(p);S.exploreVisits=S.exploreVisits||{};S.exploreVisits[p.n]=(S.exploreVisits[p.n]||0)+1; const g={food:rnd(yr.f[0],yr.f[1]),sup:rnd(yr.s[0],yr.s[1])};
-  if(extra){g[resource]+=extra;log(p.n+' 직접 탐색 · '+NAMES[resource]+' +'+extra,'good');}
-  if(perfectSupply)g[perfectSupply]+=1;
+  if(extra){
+    const loot={food:0,sup:0};
+    for(let i=0;i<extra;i++)loot[pick(['food','sup'])]++;
+    g.food+=loot.food;g.sup+=loot.sup;
+    log('탐색 추가 보급 · '+Object.entries(loot).filter(([,n])=>n).map(([k,n])=>NAMES[k]+' +'+n).join(' · '),'good');
+  }
   if(p.mo) g.mo=p.mo;
   if(p.med && chance(.55)){ log('미군 구급상자를 찾았다! 모르핀과 설파제 가루, 붕대가 들어 있다.','good'); g.hp=15; }
   if(!g.food && !g.sup) log('허탕이다. 누군가 먼저 다녀간 모양이다.','sys');

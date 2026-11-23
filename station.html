@@ -30,6 +30,8 @@ function makeCourse(){
  const rushSlots=[8,12,16];
  if(Math.random()<.5)rushSlots.push(20);
  const centers=[1.25,2.38,3.50,4.63,5.73,6.85,7.96,8.98,9.61,10.55,11.44,12.30,12.91,13.77,14.60,15.38,16.00,16.80,17.50,18.25,18.87,19.66];
+ // Shift each obstacle-and-rush pair together, preserving a playable landing gap.
+ const shifts=Array.from({length:4},()=>Math.random()*.24-.12);
  const low=pool.filter(id=>['pile','sand','drums','wire'].includes(id));
  return centers.map((center,i)=>{
    const rush=rushSlots.includes(i);
@@ -39,7 +41,9 @@ function makeCourse(){
    else if(paired)id=pick(low.length?low:['drums']);
    else if(i<7)id=i===4?'walk':pick(pool);
    else id=i%2===0?pick(['big','walk']):pick(pool);
-   return {kind:kinds.findIndex(k=>k.id===id),at:center+(Math.random()-.5)*.035,rush,hit:false,passed:false};
+   const group=Math.floor((i-7)/4);
+   const offset=i>=7&&((i-7)%4)<=1?shifts[group]:0;
+   return {kind:kinds.findIndex(k=>k.id===id),at:center+offset+(Math.random()-.5)*.035,rush,hit:false,passed:false};
  });
 }
 let best=0,impactAt=-10;
@@ -69,8 +73,8 @@ function finish(){
  const improved=clears>best;
  best=Math.max(best,clears);
  try{localStorage.setItem(bestKey,String(best));}catch{}
- message.textContent=count+'개 중 '+clears+'개 통과 · '+(improved?'새 최고 기록':'장소 최고 '+best+'개')+' · 선택 보급 +'+bonus()+(clears===count?' · 완벽 탐색! 무작위 보급 +1':'');
- action.textContent=embedded?(bonus()?'귀환 · 보급품 선택':'귀환'):'다시 도전';leave.hidden=true;
+ message.textContent=count+'개 중 '+clears+'개 통과 · '+(improved?'새 최고 기록':'장소 최고 '+best+'개')+' · 무작위 보급 +'+bonus()+(clears===count?' · 완벽 탐색! 무작위 보급 +1':'');
+ action.textContent=embedded?(bonus()?'귀환 · 보급 수령':'귀환'):'다시 도전';leave.hidden=true;
 }
 function send(value){if(reported)return;reported=true;cancelAnimationFrame(frame);parent.postMessage({type:'station-complete',bonus:value,perfect:mode==='end'&&value===2&&clears===count},'*');}
 leave.onclick=()=>send(0);
@@ -95,7 +99,7 @@ document.addEventListener('visibilitychange',()=>{release();last=null;});
 function obstacleOffset(o){
  const remaining=o.at-time;
  // A runner closes faster than the scrolling terrain, accelerating in its last half-second.
- const lunge=o.rush?remaining*165+Math.max(-.55,Math.min(.55,remaining))*145:0;
+ const lunge=o.rush?remaining*(o.at>14?330:220)+Math.max(-.55,Math.min(.55,remaining))*145:0;
  return distance(o.at)-distance(time)+lunge;
 }
 function step(dt){
