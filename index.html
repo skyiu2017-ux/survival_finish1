@@ -2031,7 +2031,7 @@ function baseNight(){
 function expEnd(){
   const e=EXPED[S.exp.k], m=mate(S.exp.who);
   if(S.exp.k==='bastogne'){S.flags.bastogneLooted=true;log('바스토뉴의 보급창은 비었다. 이제 다른 원정지를 찾아야 한다.','info');}
-  if(chance(.18)){S.grenades=(S.grenades||0)+1;log('💣 귀로에 방치된 군용 수류탄 한 발을 챙겼다.','good');render();note('원정에서 수류탄 +1');}
+  if(chance(.19)){S.grenades=(S.grenades||0)+1;log('💣 귀로에 방치된 군용 수류탄 한 발을 챙겼다.','good');render();note('원정에서 수류탄 +1');}
   if(e.end) e.end();
   m.away=0; S.exp=null; S.expCool=S.day+8; render();
   log(`해 질 무렵, ${J(m.name,'과와')} 함께 수도원 정문에 닿았다. 종탑 위에서 누군가 손을 흔들었다.`,'good');
@@ -2413,7 +2413,20 @@ function dfStep(st,dt){
     if(shot.age>=shot.duration)dfImpact(st,shot.kind,shot.x);
   }
   if(st.projectiles.length)st.projectiles=st.projectiles.filter(shot=>shot.age<shot.duration);
-  if(st.fires&&st.fires.length){ st.emitSound?.('embers'); st.fires.forEach(f=>{ f.t-=dt; st.z.forEach(z=>{ if(z.hp>0&&!z.boss&&Math.abs(z.x-f.x)<=16){ z.hp-=2.2*dt; if(Math.random()<.1) z.hit=.1; } }); }); st.fires=st.fires.filter(f=>f.t>0); }
+  if(st.fires?.length){
+    st.emitSound?.('embers');
+    for(const fire of st.fires){
+      const exposure=Math.min(dt,fire.t);
+      fire.t-=exposure;
+      for(const z of st.z){
+        if(z.hp>0&&!z.boss&&Math.abs(z.x-fire.x)<=19){
+          z.hp-=3*exposure;
+          if(Math.random()<.1) z.hit=.1;
+        }
+      }
+    }
+    st.fires=st.fires.filter(f=>f.t>0);
+  }
   const dead=st.z.filter(z=>z.hp<=0);
   dead.forEach(z=>{ if(z.boss&&!z.leaked){ st.bossOut='dead'; st.shake=1; } if(!z.leaked){ st.kills++; st.fx.push({k:'die',enemyType:z.type,x:z.x,y:DF.ROWS[z.row],t:.5,big:z.boss||z.type==='b'}); } });
   st.z=st.z.filter(z=>z.hp>0);
@@ -3585,7 +3598,7 @@ function explore(p,extra=0){
   change(g);
   note(`${p.n} 탐색${hurt?'(부상)':''}`);
   findItem();
-  if(chance(.045)){ S.grenades=(S.grenades||0)+1;log('💣 버려진 군용 수류탄 한 발을 발견했다.','good');render();note('탐색 중 수류탄 +1'); }
+  if(chance(.055)){ S.grenades=(S.grenades||0)+1;log('💣 버려진 군용 수류탄 한 발을 발견했다.','good');render();note('탐색 중 수류탄 +1'); }
   if(checkDeath()) return;
   const after=()=>{ if(hurt && chance(.55)) return memoryTest(afterAction); afterAction(); };
   if(chance(.4)) return lockbox(p,after);
@@ -3658,7 +3671,7 @@ function archive(){
     if(right){
       log(pick(['정답이 가리킨 곳을 찾아가자, 마루 밑에서 기름종이에 싼 꾸러미가 나왔다.','은닉처는 정말 그 자리에 있었다. 고맙소, 대위.','벽돌 뒤에서 녹슨 철함이 나왔다. 안에는 통조림과 연료, 탄약이 가지런히 들어 있었다.']),'good');
       change({kn:1,food:rnd(1,2),sup:rnd(0,1)}); note('수첩을 풀어 은닉처를 찾았다');
-      if(chance(.05)){ S.grenades=(S.grenades||0)+1; log('💣 숨겨진 보급함에서 수류탄 한 발을 찾았다.','good');render();note('수첩에서 수류탄 +1'); }
+      if(chance(.06)){ S.grenades=(S.grenades||0)+1; log('💣 숨겨진 보급함에서 수류탄 한 발을 찾았다.','good');render();note('수첩에서 수류탄 +1'); }
       if(kind==='mc' && S.lastDrawKind==='mc' && MC[idx]){ const t=MC[idx].tac; if(t&&!S.tactics.has(t)){ log('수첩 여백에 대위가 남긴 메모가 있다. 역사 속 사람들이 살아남은 방법이었다.','info'); unlock(t);} }
     } else {
       log(pick(['엉뚱한 집의 지하실을 뒤지다 해가 기울었다. 허탕이다.','틀린 화물칸을 열었다. 안에서 무언가가 꿈틀거렸다. 황급히 문을 닫았다.','몇 시간을 눈밭에서 헤맸지만 아무것도 찾지 못했다.']),'bad');
@@ -3994,7 +4007,7 @@ function night(stance){
   log(`— ${dateStr()} 밤 —`,'head');
   let p=S.nextAttack;
   if(stance==='fire'){ change({sup:-1});
-    if(p>0){ log('어둠 속으로 화염병을 던졌다. 불길이 치솟으며 앞줄의 그림자들이 쓰러졌다.','story'); p=Math.max(0,p-2); if(chance(S.darkNight?.40:.30)){ p+=rnd(2,4); log('그러나 치솟은 불빛을 보고 다른 숲길의 무리까지 몰려들었다!','bad'); } }
+    if(p>0){ log('어둠 속으로 화염병을 던졌다. 불길이 치솟으며 앞줄의 그림자들이 쓰러졌다.','story'); p=Math.max(0,p-3); if(chance(S.darkNight?.40:.30)){ p+=rnd(2,4); log('그러나 치솟은 불빛을 보고 다른 숲길의 무리까지 몰려들었다!','bad'); } }
     else log('화염병을 준비했지만, 다행히 쓸 일이 없었다.','story'); }
   const nt=S.nextAttack>0?S.nightType:null; const bruteHit = nt==='brute' && p>0;
   if(bruteHit) log('담장보다 머리 하나는 큰 거구가 앞장섰다. 놈이 몸을 부딪칠 때마다 바리케이드가 통째로 흔들린다.','bad');
