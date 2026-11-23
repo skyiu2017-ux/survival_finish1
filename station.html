@@ -1,7 +1,8 @@
 <!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>붉은 눈 · 바스토뉴 기차역</title>
 <style>
 *{box-sizing:border-box}body{margin:0;background:#191b20;color:#e8ece8;font:16px system-ui,sans-serif}main{max-width:900px;margin:auto;padding:12px}header,footer{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}h1{font:bold clamp(19px,4vw,28px) Georgia,serif;margin:0}output{color:#f6d591;font:bold 16px monospace}canvas{display:block;width:100%;height:auto;margin:10px 0;border:1px solid #50616a;background:#263941;touch-action:none;user-select:none}p{margin:4px 0 12px;color:#d2dedc}button{padding:9px 18px;color:#152329;background:#dfc49a;border:0;border-radius:4px;font-weight:bold;cursor:pointer;touch-action:none;user-select:none}button.secondary{background:#394b53;color:white}button:focus-visible{outline:3px solid white}
-</style><main><header><h1>바스토뉴 기차역</h1><output id="hud"></output></header><canvas width="900" height="300" aria-label="눈 덮인 바스토뉴역 승강장. 터치 또는 스페이스바로 점프"></canvas><p id="message" role="status"></p><footer><button id="action"></button><button id="leave" class="secondary" hidden>자동 탐색으로 전환</button></footer></main>
+.course-view{position:relative}.course-view canvas{display:block}.rush-alert{position:absolute;top:7%;left:50%;transform:translateX(-50%);padding:5px 14px;background:#411b17;color:#fff0cf;border:2px solid #ffae66;border-radius:4px;font-weight:800;font-size:clamp(15px,2.4vw,22px);white-space:nowrap;pointer-events:none}
+</style><main><header><h1>바스토뉴 기차역</h1><output id="hud"></output></header><div class="course-view"><canvas width="900" height="300" aria-label="눈 덮인 바스토뉴역 승강장. 터치 또는 스페이스바로 점프"></canvas><span class="rush-alert" id="rushAlert" role="status" hidden>⚠ 오른쪽에서 감염자 돌진!</span></div><p id="message" role="status"></p><footer><button id="action"></button><button id="leave" class="secondary" hidden>자동 탐색으로 전환</button></footer></main>
 <script>
 const canvas=document.querySelector('canvas'), ctx=canvas.getContext('2d');
 const hud=document.querySelector('#hud'), message=document.querySelector('#message'), action=document.querySelector('#action'), leave=document.querySelector('#leave');
@@ -26,15 +27,19 @@ const props={crypt:['ruin','drums'],barn:['pile','drums'],cabin:['pile','ruin'],
 kinds.push({id:'pile',w:59,h:32},{id:'sand',w:71,h:26});
 function makeCourse(){
  const pool=props[place],pick=list=>list[Math.floor(Math.random()*list.length)];
- const rushSlots=[pick([5,6]),pick([9,10]),pick([13,14])];
- if(Math.random()<.5)rushSlots.push(pick([16,17]));
- let at=1.30,phrase=[];
- return Array.from({length:count},(_,i)=>{
-   if(i%3===0)phrase=pick([[.78,.81,1.01],[.81,.76,1.03],[.76,.86,.98]]);
+ const rushSlots=[8,12,16];
+ if(Math.random()<.5)rushSlots.push(20);
+ const centers=[1.25,2.38,3.50,4.63,5.73,6.85,7.96,8.98,9.61,10.55,11.44,12.30,12.91,13.77,14.60,15.38,16.00,16.80,17.50,18.25,18.87,19.66];
+ const low=pool.filter(id=>['pile','sand','drums','wire'].includes(id));
+ return centers.map((center,i)=>{
    const rush=rushSlots.includes(i);
-   const id=rush?'fast':i%3===1?pick(['fast','walk','big']):pick(pool);
-   const obstacle={kind:kinds.findIndex(k=>k.id===id),at,rush,hit:false,passed:false};
-   at+=phrase[i%3];return obstacle;
+   const paired=i>=7 && i%4===3;
+   let id;
+   if(rush)id='fast';
+   else if(paired)id=pick(low.length?low:['drums']);
+   else if(i<7)id=i===4?'walk':pick(pool);
+   else id=i%2===0?pick(['big','walk']):pick(pool);
+   return {kind:kinds.findIndex(k=>k.id===id),at:center+(Math.random()-.5)*.035,rush,hit:false,passed:false};
  });
 }
 let best=0,impactAt=-10;
@@ -46,7 +51,7 @@ function bonus(){return clears>=15?2:clears>=7?1:0;}
 function reset(){
  mode='ready';time=height=velocity=airtime=clears=0;held=reported=false;last=null;
  impactAt=-10;obstacles=makeCourse();
- message.textContent='짧게 누르면 낮은 점프 · 꾹 누르면 높은 점프   |   7개 통과 +1 · 15개 통과 +2'+(best?' · 이 장소 최고 '+best+'개':'');
+ message.textContent='짧게 누르면 낮은 점프 · 꾹 누르면 높은 점프   |   7개 통과 +1 · 15개 통과 +2 · 전부 통과 시 무작위 보급 +1'+(best?' · 이 장소 최고 '+best+'개':'');
  action.textContent='도전 시작';leave.hidden=!embedded;draw();
 }
 function jump(){
@@ -64,10 +69,10 @@ function finish(){
  const improved=clears>best;
  best=Math.max(best,clears);
  try{localStorage.setItem(bestKey,String(best));}catch{}
- message.textContent=count+'개 중 '+clears+'개 통과 · '+(improved?'새 최고 기록':'장소 최고 '+best+'개')+' · 추가 보급 +'+bonus();
+ message.textContent=count+'개 중 '+clears+'개 통과 · '+(improved?'새 최고 기록':'장소 최고 '+best+'개')+' · 선택 보급 +'+bonus()+(clears===count?' · 완벽 탐색! 무작위 보급 +1':'');
  action.textContent=embedded?(bonus()?'귀환 · 보급품 선택':'귀환'):'다시 도전';leave.hidden=true;
 }
-function send(value){if(reported)return;reported=true;cancelAnimationFrame(frame);parent.postMessage({type:'station-complete',bonus:value},'*');}
+function send(value){if(reported)return;reported=true;cancelAnimationFrame(frame);parent.postMessage({type:'station-complete',bonus:value,perfect:mode==='end'&&value===2&&clears===count},'*');}
 leave.onclick=()=>send(0);
 action.onclick=e=>{
  if(mode==='end'){if(embedded)send(bonus());else reset();}
@@ -153,9 +158,12 @@ function draw(){
  if(place!=='crypt')for(let i=0;i<42;i++){const x=((i*193-time*(22+i%9))%W+W)%W,y=(i*73+time*(16+i%11))%H;ctx.fillStyle='rgba(240,238,223,.48)';ctx.fillRect(x,y,2,2);}
  ctx.restore();
  if(recoil>0){ctx.strokeStyle='rgba(194,100,73,'+recoil*.78+')';ctx.lineWidth=6;ctx.strokeRect(2,2,W-4,H-4);}
- if(mode==='run'&&obstacles.some(o=>o.rush&&o.at-time>0&&o.at-time<1.35)){
-   ctx.fillStyle='#382824';ctx.fillRect(W-164,12,152,32);
-   ctx.fillStyle='#ffd09a';ctx.font='bold 19px system-ui';ctx.fillText('⚠ 감염자 돌진',W-154,35);
+ const incoming=mode==='run'&&obstacles.find(o=>o.rush&&o.at-time>-.08&&o.at-time<1.55);
+ document.querySelector('#rushAlert').hidden=!incoming;
+ if(incoming){
+   const x=Math.min(W-22,Math.max(playerX,playerX+obstacleOffset(incoming))),y=ground-56;
+   ctx.fillStyle='#ffba60';ctx.strokeStyle='#401f19';ctx.lineWidth=2;
+   ctx.beginPath();ctx.moveTo(x-7,y-10);ctx.lineTo(x+7,y-10);ctx.lineTo(x,y);ctx.closePath();ctx.fill();ctx.stroke();
  }
  hud.textContent=(duration-time).toFixed(1)+'초 · 통과 '+clears+'/'+count+(mode==='run'?(clears<7?' · 보급까지 '+(7-clears):clears<15?' · 두 번째 보급까지 '+(15-clears):' · 보급 +2 확보'):'');
 }
