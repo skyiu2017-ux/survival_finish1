@@ -2419,8 +2419,8 @@ function dfStep(st,dt){
       const exposure=Math.min(dt,fire.t);
       fire.t-=exposure;
       for(const z of st.z){
-        if(z.hp>0&&!z.boss&&Math.abs(z.x-fire.x)<=19){
-          z.hp-=3*exposure;
+        if(z.hp>0&&!z.boss&&Math.abs(z.x-fire.x)<=18){
+          z.hp-=2.6*exposure;
           if(Math.random()<.1) z.hit=.1;
         }
       }
