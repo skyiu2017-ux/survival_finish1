@@ -3510,15 +3510,15 @@ function dayPhase(){
 
 /* ---- 탐색 ---- */
 const PLACES = [ // 확실한 저위험·저수확 / 중위험·중수확 / 고위험·고수확
-  {n:'성당 지하 납골당',d:'촛대와 양초, 미사용 포도주. 그리고 누군가 남긴 일기장.',f:[0,1],s:[0,1],r:.10,h:[4,8],mo:1},
-  {n:'외딴 농가 헛간',d:'얼어붙은 감자 자루와 건초 더미. 소들은 사라졌다.',f:[1,2],s:[0,1],r:.12,h:[5,10]},
-  {n:'숲속 사냥꾼 오두막',d:'사냥꾼들이 쓰던 숲길 끝. 덫에 걸린 토끼와 장작더미가 있을지도.',f:[1,2],s:[1,2],r:.18,h:[6,12]},
-  {n:'마을 빵집',d:'화덕은 식었지만 지하 저장고 문이 굳게 잠겨 있다.',f:[3,5],s:[0,1],r:.33,h:[9,17]},
-  {n:'강가의 제재소',d:'톱날이 멈춘 채 얼어붙었다. 쌓아 둔 목재와 연료통이 보인다.',f:[0,1],s:[3,5],r:.34,h:[9,18]},
-  {n:'바스토뉴 기차역',d:'화물칸이 줄지어 멈춰 서 있다. 문 하나가 바람에 덜컹거린다.',f:[3,5],s:[2,3],r:.38,h:[11,20]},
-  {n:'불탄 독일군 반궤도 차량',d:'철십자 표시가 그을린 장갑차. 연료통과 공구 상자가 남아 있다.',f:[2,3],s:[5,7],r:.54,h:[17,29]},
-  {n:'버려진 미군 보급소',d:'눈에 반쯤 묻힌 천막과 뒤집힌 지프. 레이션 상자가 흩어져 있다.',f:[6,9],s:[3,5],r:.58,h:[18,30]},
-  {n:'미군 야전 구호소',d:'붉은 십자가가 그려진 천막. 침상마다 담요가 덮여 있다.',f:[3,5],s:[2,4],r:.57,h:[16,28],med:true},
+  {scene:'crypt',n:'성당 지하 납골당',d:'촛대와 양초, 미사용 포도주. 그리고 누군가 남긴 일기장.',f:[0,1],s:[0,1],r:.10,h:[4,8],mo:1},
+  {scene:'barn',n:'외딴 농가 헛간',d:'얼어붙은 감자 자루와 건초 더미. 소들은 사라졌다.',f:[1,2],s:[0,1],r:.12,h:[5,10]},
+  {scene:'cabin',n:'숲속 사냥꾼 오두막',d:'사냥꾼들이 쓰던 숲길 끝. 덫에 걸린 토끼와 장작더미가 있을지도.',f:[1,2],s:[1,2],r:.18,h:[6,12]},
+  {scene:'bakery',n:'마을 빵집',d:'화덕은 식었지만 지하 저장고 문이 굳게 잠겨 있다.',f:[3,5],s:[0,1],r:.33,h:[9,17]},
+  {scene:'mill',n:'강가의 제재소',d:'톱날이 멈춘 채 얼어붙었다. 쌓아 둔 목재와 연료통이 보인다.',f:[0,1],s:[3,5],r:.34,h:[9,18]},
+  {scene:'station',n:'바스토뉴 기차역',d:'화물칸이 줄지어 멈춰 서 있다. 문 하나가 바람에 덜컹거린다.',f:[3,5],s:[2,3],r:.38,h:[11,20]},
+  {scene:'wreck',n:'불탄 독일군 반궤도 차량',d:'철십자 표시가 그을린 장갑차. 연료통과 공구 상자가 남아 있다.',f:[2,3],s:[5,7],r:.54,h:[17,29]},
+  {scene:'depot',n:'버려진 미군 보급소',d:'눈에 반쯤 묻힌 천막과 뒤집힌 지프. 레이션 상자가 흩어져 있다.',f:[6,9],s:[3,5],r:.58,h:[18,30]},
+  {scene:'aid',n:'미군 야전 구호소',d:'붉은 십자가가 그려진 천막. 침상마다 담요가 덮여 있다.',f:[3,5],s:[2,4],r:.57,h:[16,28],med:true},
 ];
 const HURT_LINES = [
   '선반 뒤에서 그림자가 튀어나왔다! 팔을 물리기 직전에 개머리판으로 밀쳐 냈다.',
@@ -3534,30 +3534,36 @@ function explorePick(){
   const rg=a=>a[0]===a[1]?`${a[0]}`:`${a[0]}~${a[1]}`;
   const available=PLACES.filter(p=>S.exploreLast?.[p.n]==null||S.day-S.exploreLast[p.n]>4);
   if(!available.length){log('최근 나흘간 확인한 장소밖에 없다. 오늘은 다른 일을 해야 한다.','info');return choices([{label:'↩ 다른 일을 한다',fn:dayPhase}]);}
-  choices(shuffle(available).slice(0,3).sort((a,b)=>a.r-b.r).map(p=>{ const y=yieldRange(p),risk=exploreRisk(p),visits=(S.exploreVisits||{})[p.n]||0; return {label:`📍 ${p.n}`,sub:`위험 ${risk>=.48?'높음':risk>=.30?'보통':'낮음'} · 🥫 식량 ${rg(y.f)} · 🪵 물자 ${rg(y.s)}${visits?` · 방문 ${visits}회`:''}${p.med?' · 💊 약품':''}${p.mo?' · 🔥 사기':''}`,fn:()=>p.n==='바스토뉴 기차역'?stationChoice(p):explore(p)}; }).concat([{label:'↩ 다른 일을 한다',cls:'ghost',fn:dayPhase}]));
+  choices(shuffle(available).slice(0,3).sort((a,b)=>a.r-b.r).map(p=>{ const y=yieldRange(p),risk=exploreRisk(p),visits=(S.exploreVisits||{})[p.n]||0; return {label:`📍 ${p.n}`,sub:`위험 ${risk>=.48?'높음':risk>=.30?'보통':'낮음'} · 🥫 식량 ${rg(y.f)} · 🪵 물자 ${rg(y.s)}${visits?` · 방문 ${visits}회`:''}${p.med?' · 💊 약품':''}${p.mo?' · 🔥 사기':''}`,fn:()=>explorationChoice(p)}; }).concat([{label:'↩ 다른 일을 한다',cls:'ghost',fn:dayPhase}]));
 }
 function scarceNow(){ return Math.max(0,Math.min(BAL.scap,Math.floor(S.day/12)) - (['spring','summer'].includes(season())?1:0)); }
 function yieldRange(p){ const visits=(S.exploreVisits||{})[p.n]||0;const sc=scarceNow()+Math.min(2,Math.floor(visits/(p.n==='바스토뉴 기차역'?2:3))); const fb=(ok('yusuf')?1:0)+(knLv()>=2&&p.r>=.3?1:0), sb=(ok('enzo')?1+(trusted('enzo')?1:0):0)+(knLv()>=5?1:0);
   return {f:[Math.max(0,p.f[0]-sc)+fb, Math.max(0,p.f[1]-sc)+fb], s:[Math.max(0,p.s[0]-sc)+sb, Math.max(0,p.s[1]-sc)+sb]}; }
-function stationChoice(p){
+function explorationChoice(p){
   choices([
     {label:'자동 탐색',sub:'기존 탐색 보상',fn:()=>explore(p)},
-    {label:'🚉 직접 탐색 · 20초',sub:'짧게 또는 길게 눌러 점프 · 7개 통과 물자 +1 / 15개 통과 +2',fn:()=>{
+    {label:'🏃 직접 탐색 · 20초',sub:'7개 통과 +1 / 15개 통과 +2 · 귀환 시 식량 또는 물자 선택',fn:()=>{
       const box=$('choices'), frame=document.createElement('iframe');
-      frame.title='바스토뉴 기차역 장애물 달리기';frame.src='station.html';
+      frame.title=p.n+' 직접 탐색';frame.src='station.html?place='+encodeURIComponent(p.scene);
       frame.style.cssText='width:100%;height:clamp(300px,56vw,445px);border:0;grid-column:1/-1';
       box.replaceChildren(frame);
       const run=S;
       function receive(e){
         if(e.source!==frame.contentWindow||e.data?.type!=='station-complete'||![0,1,2].includes(e.data.bonus))return;
         window.removeEventListener('message',receive);frame.remove();
-        if(S===run&&!S.dead)explore(p,e.data.bonus);
+        if(S!==run||S.dead)return;
+        const amount=e.data.bonus;
+        if(!amount)return explore(p);
+        choices([
+          {label:'🥫 식량 +'+amount,sub:'기본 탐색 보상에 추가',fn:()=>explore(p,amount,'food')},
+          {label:'🪵 물자 +'+amount,sub:'기본 탐색 보상에 추가',fn:()=>explore(p,amount,'sup')}
+        ]);
       }
       window.addEventListener('message',receive);frame.onload=()=>frame.focus();
     }}
   ]);
 }
-function explore(p,stationBonus=0){
+function explore(p,extra=0,resource='sup'){
   S.exploreLast=S.exploreLast||{};
   if(S.exploreLast[p.n]!=null&&S.day-S.exploreLast[p.n]<=4){log('아직 탐색한 지 4일이 지나지 않았다.','sys');return explorePick();}
   S.exploreLast[p.n]=S.day;
@@ -3571,7 +3577,7 @@ function explore(p,stationBonus=0){
   const scarce=scarceNow();
   if((scarce>0||(S.exploreVisits||{})[p.n]>2) && chance(.5)) log('날이 갈수록 쓸 만한 것이 줄어든다. 이미 뒤진 곳은 더 쉽게 비어 버린다.','sys');
   const yr=yieldRange(p);S.exploreVisits=S.exploreVisits||{};S.exploreVisits[p.n]=(S.exploreVisits[p.n]||0)+1; const g={food:rnd(yr.f[0],yr.f[1]),sup:rnd(yr.s[0],yr.s[1])};
-  if(stationBonus){g.sup+=stationBonus;log('🚉 기차역 장애물 통과 · 추가 물자 +'+stationBonus,'good');}
+  if(extra){g[resource]+=extra;log(p.n+' 직접 탐색 · '+NAMES[resource]+' +'+extra,'good');}
   if(p.mo) g.mo=p.mo;
   if(p.med && chance(.55)){ log('미군 구급상자를 찾았다! 모르핀과 설파제 가루, 붕대가 들어 있다.','good'); g.hp=15; }
   if(!g.food && !g.sup) log('허탕이다. 누군가 먼저 다녀간 모양이다.','sys');
