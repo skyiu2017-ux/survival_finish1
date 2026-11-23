@@ -882,8 +882,13 @@ function log(html, cls=''){
   if(cls==='radio') sfx('radio');
   if(FX.motion && ['story','radio','beat','beatHead','react','situ'].includes(cls)) queueType(p);
 }
-function choices(list, cls=''){
+function choices(list, cls='', warningText=''){
   const box=$('choices'); box.innerHTML=''; box.className=cls;
+  if(warningText){
+    const warning=document.createElement('p');
+    warning.className='bad'; warning.textContent=warningText;
+    box.appendChild(warning);
+  }
   list.forEach(c=>{
     const b=document.createElement('button');
     if(c.cls) b.className=c.cls;
@@ -927,12 +932,13 @@ function render(){
   vignette();
 }
 const NAMES={hp:'체력',mo:'사기',food:'식량',sup:'물자',def:'방어선',kn:'지식'};
+function moraleGain(amount){return Math.min(100-S.mo,Math.floor(amount*(S.mo>=80?.25:S.mo>=60?.60:1)));}
 function change(o,quiet=false){
   const parts=[];
   for(const k in o){
     if(!o[k]) continue;
     const before=S[k],lv0=k==='kn'?knLv():0;
-    const gain=k==='mo'&&o[k]>0?Math.floor(o[k]*(before>=80?.25:before>=60?.60:1)):o[k];
+    const gain=k==='mo'&&o[k]>0?moraleGain(o[k]):o[k];
     S[k]+=gain;
     if(k==='kn' && o[k]>0){ S.knTotal=(S.knTotal||0)+o[k]; const lv1=knLv(); if(lv1>lv0){ const K=KNOW[lv1-1]; setTimeout(()=>log(`📜 배움이 쌓였다 — 「${K.n}」 <span class="sys">${K.h}</span><br>이제부터: <b>${K.d}</b>`,'gold'),0); } }
     if(k==='hp'||k==='mo')S[k]=clamp(S[k],0,100);else if(k==='kn')S[k]=clamp(S[k],0,20);else if(k==='food')S[k]=clamp(S[k],0,FOOD_CAP);else if(k==='sup')S[k]=clamp(S[k],0,SUP_CAP);else if(k==='def')S[k]=clamp(S[k],0,DEF_CAP);else S[k]=Math.max(0,S[k]);
@@ -945,7 +951,13 @@ function change(o,quiet=false){
 function checkDeath(){
   if(S.dead) return true;
   if(S.hp<=0){gameOver('hp');return true;}
-  if(S.mo<=0){gameOver('mo');return true;}
+  if(S.mo<=0){
+    if(S.firstDespairAction){gameOver('mo');return true;}
+    // A sudden loss can occur during a night or expedition, before any daytime warning.
+    if(!S.despairGrace) log('몇몇 대원이 짐을 꾸린다. 다음 낮 행동에서 사기를 회복할 기회가 있다.','bad');
+    S.despairGrace=true;
+    S.mo=1; render();
+  }
   return false;
 }
 
@@ -1963,6 +1975,7 @@ function expMate(k){
   choices(cands.map(m=>({label:`${m.name}`,sub:m.perk,fn:()=>expStart(k,m.id)})).concat([{label:'↩ 그만둔다',cls:'ghost',fn:dayPhase}]));
 }
 function expStart(k,who){
+  recordDespairAction(ACTNAME.exp);
   const e=EXPED[k], m=mate(who);
   S.exp={k,who,stage:0}; S.actLeft=0; m.away=e.days+1; render();
   log(`${J(m.name,'과와')} 함께 「${e.n}」${J(e.n,'으로').slice(e.n.length)} 떠난다. 남은 사람들이 정문 앞에서 손을 흔들었다.`,'story');
@@ -3405,7 +3418,14 @@ function makeRequest(){
   S.request=r;
   log(`📌 오늘의 부탁 — ${mate(r.who).name.split(' ')[0]}: ${r.t} <span class="sys">(${ACTNAME[r.act]} 하면 ${Object.entries(r.rw).map(([k,v])=>NAMES[k]+' +'+v).join(' · ')}, 신뢰 +1)</span>`,'beat');
 }
+function recordDespairAction(label){
+  if(S.firstDespairDay!=null && !S.firstDespairAction){
+    S.firstDespairAction=label;
+    delete S.despairGrace;
+  }
+}
 function didAct(id){
+  recordDespairAction(ACTNAME[id]||id);
   if(S.day===1 && S.actLeft===2 && S.flags.firstGuide===id){
     const helper=S.squad[id==='explore'?0:1];
     const task=id==='explore'?'빈 배낭을 메고 당신과 함께 보급품을 찾으러 나섰다.':'당신을 도와 정문에 덧댈 판자를 날랐다.';
@@ -3427,6 +3447,7 @@ function knowledgeTactics(){
     disabled:S.kn<cost||S.knUsedDay===S.day||!!disabled,
     fn:()=>{
       if(S.kn<cost||S.knUsedDay===S.day||disabled)return dayPhase();
+      if(cost===6) recordDespairAction(label);
       S.knUsedDay=S.day;
       change({kn:-cost});
       apply();
@@ -3456,7 +3477,8 @@ function knowledgeTactics(){
 }
 function dayPhase(){
   audioScene('shelter');
-  if(S.day===1 && S.actLeft===2 && !S.flags.fullMenu){
+  const atRisk=S.mo<=15 || S.despairGrace;
+  if(!atRisk && S.day===1 && S.actLeft===2 && !S.flags.fullMenu){
     const [runner,builder]=S.squad;
     choices([
       {label:'🔦 탐색 나가기 · '+runner.name,sub:'식량을 찾을 장소를 고른다',fn:()=>{S.flags.firstGuide='explore';explorePick();}},
@@ -3467,6 +3489,9 @@ function dayPhase(){
   }
   if(S.slotLog!==S.actLeft){ S.slotLog=S.actLeft; if(S.actLeft>=2 && !S.request) makeRequest(); log(S.actLeft>=2?'☀️ 오전 — 무엇을 할까? (오늘 남은 행동 2 · 같은 일은 하루에 한 번)':'🌤️ 오후 — 해가 지기 전에 한 가지 더 할 수 있다. (오전과 다른 일)','slot'); }
   const done=id=>(S.todayActs||[]).includes(id);
+  if(atRisk && S.firstDespairDay==null) S.firstDespairDay=S.day;
+  const canRestAgain=S.despairGrace && done('rest') && (done('care')||!aliveMates().length);
+  const rested=done('rest')&&!canRestAgain;
   const tag=id=>S.request&&!S.reqDone&&S.request.act===id?'📌 부탁 · ':'';
   const hurt=S.squad.filter(m=>m.alive&&m.hurt);
   const heal=ok('marie')?26:22;
@@ -3475,11 +3500,11 @@ function dayPhase(){
     {label:'🔦 탐색 나가기',sub:done('explore')?'오늘은 이미 다녀왔다':'식량·물자(장작)를 구한다 · 부상 위험',fn:explorePick,disabled:done('explore')},
     {label:'🛠️ 방어 공사',sub:done('build')?'오늘은 이미 했다':`${tag('build')}방어선을 쌓는다 (현재 ${S.def})`,fn:buildPick,disabled:done('build')},
     {label:'📓 헤이스팅스 대위의 수첩 해독',sub:done('archive')?'오늘은 이미 했다':`${tag('archive')}문제를 풀어 은닉처를 찾는다 · 틀리면 허탕`,fn:()=>{didAct('archive');archive();},disabled:done('archive')},
-    {label:'🛏️ 휴식',sub:done('rest')?'오늘은 이미 쉬었다':`체력 +${heal} · 사기 +3 · 식량 1 추가 소모${S.food?'':' (빈속이면 회복 절반)'}`,fn:()=>{didAct('rest');rest();},disabled:done('rest')},
-    {label:'🤝 동료 돌보기',sub:done('care')?'오늘은 이미 했다':`${tag('care')}`+(hurt.length?`부상자 ${hurt.map(m=>m.name).join(', ')} 치료 · 사기 상승`:'이야기를 나누며 사기를 높인다'),fn:()=>{didAct('care');care();},disabled:!aliveMates().length||done('care')},
+    {label:'🛏️ 휴식',sub:rested?'오늘은 이미 쉬었다':`체력 +${S.food?heal:Math.round(heal/2)} · 사기 +${moraleGain(3)} · ${S.food?'식량 1 소모':'식량 소모 없음'}`,fn:()=>{didAct('rest');rest();},disabled:rested},
+    {label:'🤝 동료 돌보기',sub:done('care')?'오늘은 이미 했다':`${tag('care')}`+(hurt.length?`부상자 ${hurt.map(m=>m.name).join(', ')} 치료 · 사기 +${moraleGain(4)} · 낮 행동 1회`:`이야기를 나눈다 · 사기 +${moraleGain(5)} · 낮 행동 1회 · 식량 소모 없음`),fn:()=>{didAct('care');care();},disabled:!aliveMates().length||done('care')},
     {label:'🧭 원정 떠나기',sub:canExpedite()?'2~3일 거점을 비우고 먼 곳의 보급과 사람을 찾는다':(S.exp?'':S.actLeft<2?'원정은 오전에만 떠날 수 있다':S.day<6?'6일째부터 가능':(S.day<(S.expCool||0)?`다음 원정은 ${S.expCool}일째부터`:'함께 갈 동료가 부족하다')),fn:expPick,disabled:!canExpedite()},
     {label:'🔭 종탑 정찰',sub:S.known||S.tactics.has('enigma')?'오늘 밤 규모는 이미 파악했다':`${tag('scout')}오늘 밤 습격 규모를 정확히 파악 + 작은 수확`,fn:()=>{didAct('scout');scout();},disabled:S.known||S.tactics.has('enigma')},
-  ]);
+  ], '', atRisk ? `⚠ 무리가 흩어질 위기 · 현재 사기 ${S.mo}점. 휴식이나 동료 돌보기로 사기를 회복할 수 있다.` : '');
   S.resumePoint='day';updateSaveButton();
 }
 
@@ -4208,6 +4233,8 @@ function gameOver(kind){
   if(kind!=='peace') log(kind==='quit'?'생존 기록을 여기서 마친다. 다음 도전에서는 더 오래 버틸 수 있을까?':kind==='hp'?'시야가 하얗게 흐려진다. 눈송이가 얼굴 위로 내려앉는다. 그리고, 고요.':'희망을 잃은 사람들이 하나둘 떠났다. 당신은 텅 빈 수도원에 홀로 남았다.','bad');
   const days=calDays(), rate=S.total?Math.round(S.correct/S.total*100):0;
   const rec={runId:S.runId,name:S.name,days,date:dateShort(),cause,rate,clear:kind==='peace',knowledge:Math.max(0,Math.floor(S.knTotal||0)),food:Math.max(0,Math.floor(S.food)),sup:Math.max(0,Math.floor(S.sup)),total:Math.max(0,Math.floor(S.total||0)),correct:Math.max(0,Math.floor(S.correct||0)),activeMinutes:Math.max(0,Math.round(((S.activeMs||0)+(S.sessionStart?Math.max(0,Date.now()-S.sessionStart):0))/60000))};
+  rec.firstDespairDay=S.firstDespairDay??null;
+  rec.firstDespairAction=S.firstDespairAction||'';
   autoSendRank(rec);
   const title = kind==='quit'?'자신의 기록을 남긴 생존자':kind==='peace' ? (aliveMates().length===4?'모두를 지켜 낸 종전의 증인':'종전의 증인') : days>=150?'붉은 눈의 전설':days>=100?'두 번의 계절을 넘긴 자':days>=60?'봄을 맞은 생존자':days>=30?'아르덴의 겨울을 버틴 자':days>=14?'노련한 연락원':days>=7?'첫 주를 넘긴 자':'첫눈의 희생자';
   setTimeout(async()=>{
