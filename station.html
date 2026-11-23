@@ -1,0 +1,93 @@
+<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>붉은 눈 · 바스토뉴 기차역</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#101b22;color:#e8ece8;font:16px system-ui,sans-serif}main{max-width:900px;margin:auto;padding:12px}header,footer{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}h1{font:bold clamp(19px,4vw,28px) Georgia,serif;margin:0}output{color:#f6d591;font:bold 16px monospace}canvas{display:block;width:100%;height:auto;margin:10px 0;border:1px solid #50616a;background:#263941;touch-action:manipulation}p{margin:4px 0 12px;color:#d2dedc}button{padding:9px 18px;color:#152329;background:#efd298;border:0;border-radius:4px;font-weight:bold;cursor:pointer;touch-action:manipulation}button.secondary{background:#394b53;color:white}button:focus-visible{outline:3px solid white}
+</style><main><header><h1>바스토뉴 기차역</h1><output id="hud"></output></header><canvas width="720" height="246" aria-label="눈 덮인 역 앞 도로. 터치 또는 스페이스바로 점프"></canvas><p id="message" role="status"></p><footer><button id="action"></button><button id="leave" class="secondary" hidden>자동 탐색으로 전환</button></footer></main>
+<script>
+const canvas=document.querySelector('canvas'), ctx=canvas.getContext('2d');
+const hud=document.querySelector('#hud'), message=document.querySelector('#message'), action=document.querySelector('#action'), leave=document.querySelector('#leave');
+const embedded=parent!==window, ground=205, playerX=97, duration=20;
+const background=new Image(), atlas=new Image(); background.src='assets/battlefield-1600.webp'; atlas.src='assets/battle_atlas.webp';
+const kinds=[
+  ['자동차',64,31],['잔해',44,32],['드럼통',29,35],['철조망',55,26],
+  ['떠도는 감염자',28,45],['몸을 숙인 감염자',34,33],['덩치 큰 감염자',37,51]
+];
+const course=[0,4,2,1,5,3,0,6,2,4,3,5];
+const arrivals=[2.05,3.85,5.45,7.2,8.75,10.15,11.8,13.28,14.7,16.18,17.6,19.12];
+let mode,time,jumpAt,hits,clears,obstacles,last,frame,reported;
+const distance=t=>215*t+2.6*t*t;
+function altitude(t){const age=t-jumpAt;return age<0||age>0.93?0:Math.max(0,390*age-420*age*age);}
+function bonus(){return clears>=9?2:clears>=4?1:0;}
+function reset(){
+  mode='ready';time=0;jumpAt=-2;hits=0;clears=0;reported=false;last=null;
+  obstacles=course.map((kind,i)=>({kind,at:arrivals[i],hit:false,passed:false}));
+  message.textContent='화면 터치 또는 스페이스바로 점프하세요. 4개 통과 시 물자 +1 · 9개 통과 시 +2';
+  action.textContent='도전 시작'; leave.hidden=!embedded; draw();
+}
+function input(){
+  if(mode==='ready'){mode='run';action.textContent='점프';last=null;frame=requestAnimationFrame(tick);return;}
+  if(mode==='run'&&altitude(time)===0)jumpAt=time;
+}
+function send(value){if(reported)return;reported=true;cancelAnimationFrame(frame);parent.postMessage({type:'station-complete',bonus:value},'*');}
+function finish(){
+  mode='end';message.textContent='12개 중 '+clears+'개 통과 · 충돌 '+hits+'회 · 추가 물자 +'+bonus();
+  action.textContent=embedded?'물자 챙겨 귀환':'다시 도전';leave.hidden=true;
+}
+action.onclick=()=>{if(mode==='end'){if(embedded)send(bonus());else reset();}else input();};
+leave.onclick=()=>send(0);
+canvas.onpointerdown=e=>{e.preventDefault();input();};
+window.addEventListener('keydown',e=>{if(e.code==='Space' && mode!=='end' && document.activeElement!==leave){e.preventDefault();if(!e.repeat)input();}});
+document.addEventListener('visibilitychange',()=>{last=null;});
+function step(dt){
+  time=Math.min(duration,time+dt);
+  for(const o of obstacles){
+    const [,w,h]=kinds[o.kind],x=playerX+distance(o.at)-distance(time);
+    if(!o.passed&&!o.hit&&Math.abs(x-playerX)<w*.40+7&&altitude(time)<h-4){o.hit=true;hits++;}
+    if(!o.passed&&x+w/2<playerX-10){o.passed=true;if(!o.hit)clears++;}
+  }
+}
+function tick(now){
+  if(mode!=='run')return;
+  let dt=last===null?0:Math.min(.12,(now-last)/1000);last=now;
+  while(dt>0){const slice=Math.min(.012,dt);step(slice);dt-=slice;}
+  if(time>=duration)finish();draw();if(mode==='run')frame=requestAnimationFrame(tick);
+}
+function rect(x,y,w,h,color){ctx.fillStyle=color;ctx.fillRect(Math.round(x),Math.round(y),w,h);}
+function line(x,y,x2,y2,color,width=2){ctx.strokeStyle=color;ctx.lineWidth=width;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x2,y2);ctx.stroke();}
+function sprite(sx,sy,sw,sh,x,y,w,h){
+  if(!atlas.naturalWidth)return false;
+  const scale=atlas.naturalWidth/400;ctx.drawImage(atlas,sx*scale,sy*scale,sw*scale,sh*scale,x,y,w,h);return true;
+}
+function paintObstacle(o,x){
+  const [name,w,h]=kinds[o.kind];ctx.save();ctx.translate(Math.round(x-w/2),ground);
+  if(o.hit)ctx.globalAlpha=.55;
+  if(o.kind===0){
+    rect(0,-19,64,15,'#323f41');rect(12,-30,33,15,'#59696a');rect(17,-27,10,9,'#a8bfc1');rect(31,-27,9,9,'#a8bfc1');rect(1,-20,12,3,'#d4e1dd');rect(12,-32,32,3,'#e5ebe0');rect(2,-15,5,4,'#e6c37d');for(const wheel of [8,46]){rect(wheel,-10,12,10,'#141e24');rect(wheel+4,-7,4,4,'#808b88');}
+  }else if(o.kind===1){
+    for(const [a,b,c] of [[0,10,17],[19,12,24],[7,22,18],[20,32,12]]){rect(a,-b,c,10,'#755b51');rect(a,-b,c,3,'#d4d8ca');}line(3,-3,39,-28,'#363a38',4);
+  }else if(o.kind===2){
+    rect(2,-35,25,35,'#915648');for(const y of [-34,-25,-9])rect(1,y,27,3,'#442f30');rect(3,-36,23,3,'#dce5de');rect(6,-21,3,10,'#ba7860');
+  }else if(o.kind===3){
+    for(const a of [3,49])rect(a,-26,4,26,'#554a42');
+    for(let a=3;a<49;a+=9){line(a,-18,a+9,-8,'#aab3af');line(a,-8,a+9,-18,'#768482');line(a,-15,a-2,-20,'#d3d9d1',1);}
+  }else{
+    const variant=o.kind-4, pose=Math.floor(time*(variant===1?8:5))%2;
+    if(!sprite(60+pose*36,185+variant*35,36,35,-3,-h,w+6,h)){rect(4,-h,w-8,h,'#646d5b');}
+  }
+  ctx.restore();
+}
+function draw(){
+  const d=distance(time);ctx.imageSmoothingEnabled=false;rect(0,0,720,246,'#899ea1');
+  if(background.naturalWidth){const pan=(d*.12)%900;ctx.drawImage(background,-pan,-36,900,265);ctx.drawImage(background,900-pan,-36,900,265);}
+  rect(0,0,720,190,'rgba(28,47,54,.22)');
+  for(let i=0;i<5;i++){let x=i*210-(d*.36%210);rect(x,113,4,82,'#425354');line(x,114,x+210,124,'#36474a',1);}
+  const sign=382-(d*.36%960);rect(sign+6,148,4,46,'#554d41');rect(sign,123,113,27,'#253e41');ctx.fillStyle='#e5ddba';ctx.font='bold 15px monospace';ctx.fillText('BASTOGNE',sign+17,142);
+  rect(0,194,720,52,'#718387');rect(0,201,720,5,'#e0e7df');rect(0,207,720,39,'#45575d');
+  for(let x=-(d%70);x<720;x+=70)rect(x,228,31,3,'#99a6a2');
+  obstacles.forEach(o=>{const x=playerX+distance(o.at)-d;if(x>-65&&x<770)paintObstacle(o,x);});
+  const y=ground-altitude(time),run=Math.floor(time*8)%2;
+  if(!sprite(0,185,28,30,playerX-23,y-51+(altitude(time)?0:run*2),47,51)){rect(playerX-10,y-44,21,44,'#403e32');}
+  if(mode==='ready'){ctx.fillStyle='#f5d599';ctx.font='bold 16px system-ui';ctx.fillText('출발',playerX-16,ground-58);}
+  hud.textContent=(duration-time).toFixed(1)+'초 · 통과 '+clears+'/12';
+}
+background.onload=atlas.onload=draw;reset();
+</script></html>
