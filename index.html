@@ -3508,13 +3508,18 @@ function dayPhase(){
   const tag=id=>S.request&&!S.reqDone&&S.request.act===id?'📌 부탁 · ':'';
   const hurt=S.squad.filter(m=>m.alive&&m.hurt);
   const heal=ok('marie')?26:22;
+  const restGain=recoveryMorale(3), careGain=recoveryMorale(hurt.length?4:5);
+  const recovery=[
+    {label:'🛏️ 휴식',sub:rested?'오늘은 이미 쉬었다':`체력 +${S.food?heal:Math.round(heal/2)} · 사기 +${moraleGain(restGain)} · ${S.food?'식량 1 소모':'식량 소모 없음'}`,fn:()=>{didAct('rest');rest(restGain);},disabled:rested},
+    {label:'🤝 동료 돌보기',sub:done('care')?'오늘은 이미 했다':`${tag('care')}`+(hurt.length?`부상자 ${hurt.map(m=>m.name).join(', ')} 치료 · 사기 +${moraleGain(careGain)} · 낮 행동 1회`:`이야기를 나눈다 · 사기 +${moraleGain(careGain)} · 낮 행동 1회 · 식량 소모 없음`),fn:()=>{didAct('care');care(careGain);},disabled:!aliveMates().length||done('care')},
+  ];
   choices([
+    ...(atRisk ? recovery.filter(c=>!c.disabled) : []),
     {label:'📜 지식 활용 · 작전회의',sub:S.knUsedDay===S.day?'오늘은 이미 실행했다':`보유 지식 ${S.kn}/20 · 정찰 3 / 탐색 4 / 방어·치료 5 / 사기 6 · 낮 행동 소모 없음`,disabled:S.knUsedDay===S.day||S.kn<3,fn:knowledgeTactics},
-    {label:'🔦 탐색 나가기',sub:done('explore')?'오늘은 이미 다녀왔다':'식량·물자(장작)를 구한다 · 부상 위험',fn:explorePick,disabled:done('explore')},
+    {label:'🔦 탐색 나가기',sub:done('explore')?'오늘은 이미 다녀왔다':S.sup===0?'물자가 바닥났다. 탐색 장소의 🪵 예상 수량을 확인하자.':'식량·물자(장작)를 구한다 · 부상 위험',fn:explorePick,disabled:done('explore')},
     {label:'🛠️ 방어 공사',sub:done('build')?'오늘은 이미 했다':`${tag('build')}방어선을 쌓는다 (현재 ${S.def})`,fn:buildPick,disabled:done('build')},
     {label:'📓 헤이스팅스 대위의 수첩 해독',sub:done('archive')?'오늘은 이미 했다':`${tag('archive')}문제를 풀어 은닉처를 찾는다 · 틀리면 허탕`,fn:()=>{didAct('archive');archive();},disabled:done('archive')},
-    {label:'🛏️ 휴식',sub:rested?'오늘은 이미 쉬었다':`체력 +${S.food?heal:Math.round(heal/2)} · 사기 +${moraleGain(3)} · ${S.food?'식량 1 소모':'식량 소모 없음'}`,fn:()=>{didAct('rest');rest();},disabled:rested},
-    {label:'🤝 동료 돌보기',sub:done('care')?'오늘은 이미 했다':`${tag('care')}`+(hurt.length?`부상자 ${hurt.map(m=>m.name).join(', ')} 치료 · 사기 +${moraleGain(4)} · 낮 행동 1회`:`이야기를 나눈다 · 사기 +${moraleGain(5)} · 낮 행동 1회 · 식량 소모 없음`),fn:()=>{didAct('care');care();},disabled:!aliveMates().length||done('care')},
+    ...(!atRisk ? recovery : []),
     {label:'🧭 원정 떠나기',sub:canExpedite()?'2~3일 거점을 비우고 먼 곳의 보급과 사람을 찾는다':(S.exp?'':S.actLeft<2?'원정은 오전에만 떠날 수 있다':S.day<6?'6일째부터 가능':(S.day<(S.expCool||0)?`다음 원정은 ${S.expCool}일째부터`:'함께 갈 동료가 부족하다')),fn:expPick,disabled:!canExpedite()},
     {label:'🔭 종탑 정찰',sub:S.known||S.tactics.has('enigma')?'오늘 밤 규모는 이미 파악했다':`${tag('scout')}오늘 밤 습격 규모를 정확히 파악 + 작은 수확`,fn:()=>{didAct('scout');scout();},disabled:S.known||S.tactics.has('enigma')},
   ], '', atRisk ? `⚠ 무리가 흩어질 위기 · 현재 사기 ${S.mo}점. 휴식이나 동료 돌보기로 사기를 회복할 수 있다.` : '');
@@ -3547,7 +3552,13 @@ function explorePick(){
   const rg=a=>a[0]===a[1]?`${a[0]}`:`${a[0]}~${a[1]}`;
   const available=PLACES.filter(p=>S.exploreLast?.[p.n]==null||S.day-S.exploreLast[p.n]>4);
   if(!available.length){log('최근 나흘간 확인한 장소밖에 없다. 오늘은 다른 일을 해야 한다.','info');return choices([{label:'↩ 다른 일을 한다',fn:dayPhase}]);}
-  choices(shuffle(available).slice(0,3).sort((a,b)=>a.r-b.r).map(p=>{ const y=yieldRange(p),risk=exploreRisk(p),visits=(S.exploreVisits||{})[p.n]||0; return {label:`📍 ${p.n}`,sub:`위험 ${risk>=.48?'높음':risk>=.30?'보통':'낮음'} · 🥫 식량 ${rg(y.f)} · 🪵 물자 ${rg(y.s)}${visits?` · 방문 ${visits}회`:''}${p.med?' · 💊 약품':''}${p.mo?' · 🔥 사기':''}`,fn:()=>explorationChoice(p)}; }).concat([{label:'↩ 다른 일을 한다',cls:'ghost',fn:dayPhase}]));
+  const shuffled=shuffle(available);
+  const offered=shuffled.slice(0,3);
+  if(S.sup===0 && !offered.some(p=>yieldRange(p).s[0]>=2)){
+    const supplySite=shuffled.slice(3).find(p=>yieldRange(p).s[0]>=2);
+    if(supplySite) offered[offered.length-1]=supplySite;
+  }
+  choices(offered.sort((a,b)=>a.r-b.r).map(p=>{ const y=yieldRange(p),risk=exploreRisk(p),visits=(S.exploreVisits||{})[p.n]||0; return {label:`📍 ${p.n}`,sub:`위험 ${risk>=.48?'높음':risk>=.30?'보통':'낮음'} · 🥫 식량 ${rg(y.f)} · 🪵 물자 ${rg(y.s)}${visits?` · 방문 ${visits}회`:''}${p.med?' · 💊 약품':''}${p.mo?' · 🔥 사기':''}`,fn:()=>explorationChoice(p)}; }).concat([{label:'↩ 다른 일을 한다',cls:'ghost',fn:dayPhase}]));
 }
 function scarceNow(){ return Math.max(0,Math.min(BAL.scap,Math.floor(S.day/12)) - (['spring','summer'].includes(season())?1:0)); }
 function yieldRange(p){ const visits=(S.exploreVisits||{})[p.n]||0;const sc=scarceNow()+Math.min(2,Math.floor(visits/(p.n==='바스토뉴 기차역'?2:3))); const fb=(ok('yusuf')?1:0)+(knLv()>=2&&p.r>=.3?1:0), sb=(ok('enzo')?1+(trusted('enzo')?1:0):0)+(knLv()>=5?1:0);
@@ -3680,18 +3691,19 @@ function archive(){
     if(checkDeath()) return; cont(afterAction);
   },'note');
 }
-function rest(){
+function recoveryMorale(base){ return base+(S.mo<=15?3:0); }
+function rest(gain){
   log(pickAlive(['교대로 보초를 세우고 눈을 붙였다. 꿈속에서 고향의 봄이 흘렀다.','마리가 끓여 준 묽은 수프를 먹고 오랜만에 깊이 잠들었다.','난롯가에서 잠시 쉬었다. 멀리서 들리는 소리는 애써 무시했다.']),'story');
   const heal=(ok('marie')?26:22)*(S.food>0?1:.5); if(!S.food) log('빈속으로는 잠도 오지 않는다.','sys');
-  change({hp:Math.round(heal),mo:3,food:S.food>0?-1:0}); note('하루를 쉬었다');
+  change({hp:Math.round(heal),mo:gain,food:S.food>0?-1:0}); note('하루를 쉬었다');
   afterAction();
 }
-function care(){
+function care(gain){
   const hurt=S.squad.filter(m=>m.alive&&m.hurt);
   if(hurt.length){ hurt.forEach(m=>{m.hurt=Math.max(0,m.hurt-2);}); log(`${hurt.map(m=>m.name).join(', ')}의 상처를 돌봤다. ${hurt.some(m=>!m.hurt)?'이제 움직일 수 있을 것 같다.':'조금 나아졌다.'}`,'good'); render(); }
   const pool=aliveMates().filter(m=>!m.hurt);
   if(pool.length){ const m=pick(pool); const L=TALKS[m.id]; log(L[(S.day+rnd(0,3))%L.length],'story'); }
-  change({mo:hurt.length?4:5}); note('동료들과 이야기를 나눴다');
+  change({mo:gain}); note('동료들과 이야기를 나눴다');
   afterAction();
 }
 function scout(){
