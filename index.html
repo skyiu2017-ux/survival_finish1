@@ -179,7 +179,6 @@ th{color:var(--dim);font-weight:400}
     <label for="nameInput">생존자 닉네임 또는 교사가 배정한 고유 코드 (공용 랭킹에 표시됩니다)</label>
     <input id="nameInput" maxlength="20" placeholder="예: 아르덴17 / R17">
     <button class="primary" id="startBtn">1945년 1월 29일, 생존을 시작한다</button>
-    <a class="mode-link" href="./defense.html">붉은 눈 디펜스 플레이 →</a>
     <button class="hidden" id="continueBtn" style="margin-top:8px">💾 저장된 도전 이어하기</button>
     <p class="sys" id="continueInfo" style="font-size:12px"></p>
     <details class="rules"><summary>생존 수첩 · 게임 규칙</summary>
@@ -4390,5 +4389,7 @@ if(new URLSearchParams(location.search).get('preview')==='battle'){
   });
 }
 </script>
+<script src="./game-navigation.js"></script>
+<script>installGameNavigation(document,"survival");</script>
 </body>
 </html>
