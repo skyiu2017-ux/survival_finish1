@@ -227,6 +227,17 @@ body.dgmode button.dgcard.r-act{background:linear-gradient(#8a6a3f,#6c512f);bord
 body.dgmode button.dgcard.r-evo{background:linear-gradient(#ffcf5a,#f29a2e);border-color:#fff4c2;color:#4a2208;box-shadow:0 5px 0 #a85a18,0 0 22px rgba(255,200,90,.65)}
 body.dgmode button.dgcard.r-evo .sub{color:#5a2a08}
 body.dgmode button.dgcard:hover:not(:disabled){transform:translateY(-4px) scale(1.02)}
+.dfChoices{display:flex;flex-wrap:wrap;gap:4px;margin:5px 0}.dfChoices button{font:inherit;padding:5px 8px;border-radius:6px;color:#fff;background:#352e37;border:1px solid #918589}.dfChoices small{display:block;font-size:.85em}.dfChoices [aria-pressed=true]{background:#ffe080;color:#221921;border-color:#ffe080}
+#dfTip:has(.dfChoices){max-height:43%;overflow:auto}
+@media(orientation:landscape) and (max-height:620px){
+ #dfModal:not(.hidden){display:block;overflow:auto;background:#18141e}
+ #dfStage{display:grid;width:100%;height:100dvh;aspect-ratio:auto;grid-template-columns:minmax(0,1fr) clamp(190px,32vw,340px);grid-template-rows:auto auto auto auto auto 1fr;align-content:start;gap:4px;padding:4px;box-sizing:border-box;overflow:auto}
+ #dfStage>#dfCanvas{grid-column:1;grid-row:1/7;align-self:center;position:sticky;top:0;width:100%;height:auto;aspect-ratio:16/9}
+ #dfStage>:not(canvas){position:static;grid-column:2;width:auto;max-height:none;margin:0;font-size:13px}
+ #dfStage #dfAct{flex-wrap:wrap} #dfStage #dfBoss input{max-width:100%;min-width:0} #dfStage #dfTip{max-height:none}
+ #dfTop{grid-row:1}#dfBtns{grid-row:2;flex-direction:row;flex-wrap:wrap}#dfBoss{grid-row:3}#dfAct{grid-row:4}#dfTip{grid-row:5}#battleAudio{grid-row:6;align-self:start}
+ #dfStage button{min-height:32px;font-size:13px}
+}
 </style>
 </head>
 <body>
@@ -2419,7 +2430,7 @@ function dfApplyLayout(L){
   for(const k in L.slots){ const [cx,feet]=L.slots[k]; DF_SLOTS[k].x=cx-8; DF_SLOTS[k].y=feet-19; DF_SLOTS[k].recess=0; }
 }
 const DF_UNITS={
-  me:   {n:'나',  kind:'gun', dmg:1,cd:1.0, tip:'소총'},
+  me:   {n:'지휘관',  kind:'gun', dmg:1,cd:1.0, tip:'소총'},
   emil: {n:'에밀',kind:'gun', dmg:2,cd:1.5, tip:'사냥총 · 한 발이 세다'},
   jack: {n:'잭',  kind:'nade',dmg:2,cd:5.0, tip:'수류탄 · 무리를 한꺼번에'},
   marie:{n:'마리',kind:'medic',              tip:'응급처치 · 침입 피해 감소, 방어선 수리 불가'},
@@ -2571,11 +2582,20 @@ const weaponModels={
     "미군 M9A1 총류탄"
   ]
 };
-function modelName(id,lv){return weaponModels[id][lv>=5?2:lv>=3?1:0];}
+function modelName(id,lv){return DF_WEAPONS[id].n+" · "+weaponModels[id][lv>=5?2:lv>=3?1:0];}
+// Per-level base damage and interval changes. Third-level range is relative to the slot.
+const weaponGrowth={
+ rifle:[.32,.07,.08],hunt:[.42,.035,.1],sniper:[.46,.025,.16],smg:[.22,.095,.04],
+ lmg:[.26,.085,.06],shotgun:[.37,.045,.14],pistol:[.24,.09,.12],
+ nade:[.34,.055,.08],rg:[.29,.075,.13],mortar:[.38,.045,.12],
+ dyna:[.45,.035,.05],flamer:[.24,.075,.16],rocket:[.47,.025,.1]
+};
+function growthLabel(id){const [power,rate,range]=weaponGrowth[id];return '기본 위력 +'+Math.round(power*100)+'% · 기본 간격 −'+Number((rate*100).toFixed(1))+'%';}
 function dfWeaponOf(u,P){
   const w=P.weapons&&P.weapons[u.id]; if(!w||!DF_WEAPONS[w.w]) return null;
   const D=DF_WEAPONS[w.w], lv=Math.max(1,Math.min(5,w.lv||1)), evo=lv>=5;
-  return {...D,id:w.w,n:modelName(w.w,lv),lv,evo,range:D.range*(lv>=3?1.08:1),dmg:D.dmg*(1+.32*(lv-1)),cd:D.cd*(1-.07*(lv-1)),
+  const [power,rate,reach]=weaponGrowth[w.w];
+  return {...D,id:w.w,n:modelName(w.w,lv),lv,evo,range:D.range*(lv>=3?1+reach:1),dmg:D.dmg*(1+power*(lv-1)),cd:D.cd*(1-rate*(lv-1)),
     pierce:(evo&&D.pierce5)||D.pierce||0, stun:evo&&D.stun5||0, double:evo&&D.double5, burst:(evo&&D.burst5)||D.burst||1,
     hits:(evo&&D.hits5)||D.hits||1, rad:(D.rad||0)*(evo&&D.rad5||1), shells:(evo&&D.shells5)||1, fire:evo&&D.fire5};
 }
@@ -2722,7 +2742,7 @@ function dfStep(st,dt){
         if(mod.pierce&&tgs[1]){ tgs[1].hp-=U.dmg*mod.dmg*bonus(tgs[1])*dfMul(tgs[1],'gun'); tgs[1].hit=.15; } tg.hit=.15; u.cd=U.cd*DFK.k*supply*mod.cd; u.fl=.12; u.shotAt=st.t; st.fx.push({k:'shot',sx:shotOrigin(u.id,S2).x,sy:shotOrigin(u.id,S2).y,x:tg.x,y:DF.ROWS[tg.row]-8,t:.12},{k:'num',x:tg.x,y:DF.ROWS[tg.row]-20,v:'-'+Math.round(dmg*10)/10,t:.7}); }
     } else if(U.kind==='nade'){
       const tg=st.z.filter(inR).sort((a,b)=>a.x-b.x)[0];
-      if(tg){ st.emitSound?.('blast'); st.z.forEach(z=>{ if(z.hp>0&&!z.boss&&Math.abs(z.x-tg.x)<=16*mod.blast){ z.hp-=U.dmg*mod.dmg*dfMul(z,'blast'); z.hit=.2; if(mod.stun) z.stun=Math.max(z.stun,mod.stun); } });
+      if(tg){ st.emitSound?.('blast'); st.z.forEach(z=>{ if(z.hp>0&&!z.boss&&Math.abs(z.x-tg.x)<=21*mod.blast){ z.hp-=U.dmg*mod.dmg*dfMul(z,'blast'); z.hit=.2; if(mod.stun) z.stun=Math.max(z.stun,mod.stun); } });
         u.cd=U.cd*DFK.k*mod.cd; u.fl=.2; u.shotAt=st.t; st.fx.push({k:'boom',x:tg.x,y:DF.ROWS[tg.row]-4,t:.6,seed:Math.floor(st.t*100)},{k:'num',x:tg.x,y:DF.ROWS[tg.row]-24,v:'-'+U.dmg,t:.7}); }
     } else if(U.kind==='blast'){
       const tg=st.z.filter(inR).sort((a,b)=>a.x-b.x)[0];
@@ -2743,8 +2763,8 @@ function dfStep(st,dt){
       const exposure=Math.min(dt,fire.t);
       fire.t-=exposure;
       for(const z of st.z){
-        if(dfHittable(z)&&Math.abs(z.x-fire.x)<=18){
-          z.hp-=2.6*exposure*dfMul(z,'fire');
+        if(dfHittable(z)&&Math.abs(z.x-fire.x)<=(fire.bottle?21:18)){
+          z.hp-=(fire.bottle?3:2.6)*exposure*dfMul(z,'fire');
           if(Math.random()<.1) z.hit=.1;
         }
       }
@@ -2818,7 +2838,7 @@ function dfImpact(st,kind,x){
     st.shake=.36;
     st.fx.push({k:'shock',x,y:157,t:.48},{k:'boom',x,y:155,t:.6,seed:Math.floor(x*7)});
   }else{
-    (st.fires||(st.fires=[])).push({x,t:2.4});
+    (st.fires||(st.fires=[])).push({x,t:2.6,bottle:true});
     st.fx.push({k:'glass',x,y:157,t:.42});
   }
 }
@@ -2901,7 +2921,7 @@ function dfGunTarget(st){ const c=st.z.filter(z=>dfHittable(z)&&!z.hidden&&z.x<D
   const w=z=>(z.boss?6:z.type==='b'?3:1)*(dfMul(z,'blast')||.2);
   let best=null,bs=-1; for(const z of c){ const sc=c.reduce((n,q)=>n+(Math.abs(q.x-z.x)<=18?w(q):0),0)+(z.x<DF.WALLX+60?.5:0); if(sc>bs){bs=sc;best=z;} } return best; }
 function dfGun(st){ if(!dfGunReady(st)) return false; const tg=dfGunTarget(st); if(!tg) return false; const T=st.tank;
-  const dmg=10*(1+.3*(T.lv-1)); st.z.forEach(z=>{ if(dfHittable(z)&&Math.abs(z.x-tg.x)<=16){ z.hp-=(z===tg?dmg:dmg*.5)*dfMul(z,'blast'); z.hit=.3; } });
+  const dmg=16*(1+.35*(T.lv-1)); st.z.forEach(z=>{ if(dfHittable(z)&&Math.abs(z.x-tg.x)<=21){ z.hp-=(z===tg?dmg:dmg*.65)*dfMul(z,'blast'); z.hit=.3; } });
   T.en=0; T.ready=0; T.fl=.3; st.shake=Math.max(st.shake||0,.7); st.usedGun=(st.usedGun||0)+1;
   const pose=vehiclePose(st); st.fx.push({k:'shot',sx:pose.mx,sy:pose.my,x:tg.x,y:DF.ROWS[tg.row]-6,t:.14},{k:'boom',x:tg.x,y:DF.ROWS[tg.row]-3,t:.8,seed:Math.floor(tg.x*5)},{k:'shout',x:Math.max(40,pose.x+10),y:pose.y-6,t:1,v:'주포 발사!'}); st.emitSound?.('blast'); return true; }
 // 사람이 없는 판(자동 진행·시뮬레이션)은 거구나 무리가 보이면 곧바로 쏜다.
@@ -3765,7 +3785,32 @@ function dfOpen(P,done){
   const slv=P.scoutLv!=null?P.scoutLv:(P.known?2:1);
   const scout = scoutText(plan,slv,false)+(P.skipFirst?' <span class="sys">(첫 무리는 숨어서 피했다)</span>':'');
   const placeText=()=>{ top.innerHTML=`<b>${P.preview?'야간 습격 미리보기':'🌙 '+dateStr()+' 밤 — 습격!'}</b> 담장 내구 ${P.dp}<br><span>${scout}</span>${P.boss?'<br><span style="color:#e7b6ff">🗿 거인에게는 총알이 듣지 않는다. 나타나면 교과서 개념을 입력해 맞혀라! (${P.bossNeed||3}번)</span>':''}<br><span>직접 던질 것: 💣 수류탄 ${P.nades||0} · 🔥 화염병 ${P.fires||0}${P.units.includes('zofia')?' · 🔧 조피아 긴급 수리(물자 1/회 · 밤당 2회 · 실패 가능)':''}</span>`;
-    const s=ui.sel; tip.innerHTML = !s ? (P.raid?`<b style="color:#ffd36b">🪖 정찰 보고: 참호 습격대 ${P.raid.n||8}명이 ${DF_ROWNAME[P.raid.row]}로 한 덩어리가 되어 뛰어온다. 뭉쳐 있어 폭발에 2.5배로 약하다. 레온을 종탑으로 올리면 종을 울려 모두가 습격대부터 쏘고, 💣 수류탄을 아껴 두었다가 무리에 던져도 된다.</b><br>`:'')+'배치 전략: 종탑=장거리·강한 한 발, 왼쪽 창가=빠른 사격, 오른쪽 창가=광역 지원, 전방=근접 저지. 동료의 신뢰도도 사격 효율에 반영된다. 카드를 눌러 위치를 바꿔 보자.' : s==='trap' ? '덫: 눈밭 바닥을 누르면 그 자리로 옮긴다. 밟은 놈은 다치고 거구·거인은 잠시 묶인다.' : `<b>${DF_UNITS[s].n}</b> — ${DF_UNITS[s].tip} · 지금 자리: ${DF_SLOTS[place.units[s]].n} (${DF_SLOTS[place.units[s]].tip})`; };
+    const selected=ui.sel, slotName=k=>({front1:'전방 왼쪽',front2:'전방 오른쪽'}[k]||DF_SLOTS[k].n);
+    tip.innerHTML='<b>동료 선택 → 자리 선택</b><div class="dfChoices">'+ui.cards.map(id=>{
+      const on=id===selected, w=P.weapons?.[id];
+      return '<button data-person="'+id+'" aria-pressed="'+on+'">'+(on?'✔ ':'')+(id==='trap'?'덫':DF_UNITS[id].n+' · '+(w?DF_WEAPONS[w.w].n:DF_UNITS[id].tip.split(' · ')[0]))+'</button>';
+    }).join('')+'</div>';
+    if(!selected&&P.bossKind==='smoke')tip.insertAdjacentText('beforeend','가스 감염자를 담장 가까이에서 쓰러뜨리면 전방 사격이 5초간 느려집니다. 종탑에서 먼저 막으세요.');
+    if(selected==='trap')tip.insertAdjacentText('beforeend','바닥을 눌러 덫 이동');
+    else if(selected){
+      const current=place.units[selected];
+      tip.insertAdjacentHTML('beforeend','<strong>'+DF_UNITS[selected].n+' · '+slotName(current)+'</strong> · '+DF_SLOTS[current].tip+'<div class="dfChoices">'+DF_ORDER.map(k=>{
+        const occupant=units.find(id=>place.units[id]===k);
+        return '<button data-seat="'+k+'" aria-pressed="'+(k===current)+'">'+slotName(k)+' · '+(occupant?DF_UNITS[occupant].n:'빈 자리')+'<small>'+DF_SLOTS[k].tip+'</small></button>';
+      }).join('')+'</div>');
+    }else if(P.raid)tip.insertAdjacentText('beforeend','참호 습격대가 옵니다. 레온을 종탑에 놓으면 무리에 사격을 집중합니다.');
+    tip.onclick=e=>{
+      if(ui.phase!=='place')return;
+      const b=e.target.closest('button');if(!b)return;
+      if(b.dataset.person)ui.sel=b.dataset.person;
+      if(b.dataset.seat&&units.includes(ui.sel)){
+        const to=b.dataset.seat,other=units.find(id=>place.units[id]===to);
+        if(other)place.units[other]=place.units[ui.sel];
+        place.units[ui.sel]=to;st=dfCreate(P,place);
+      }
+      placeText();
+    };
+  };
   const L=e=>{ const r=cv.getBoundingClientRect(); return {x:(e.clientX-r.left)/r.width*DF.W, y:(e.clientY-r.top)/r.height*DF.H}; };
   const act=document.getElementById('dfAct');
   const inv={nade:P.nades||0, fire:P.fireStock!=null?P.fireStock:(P.fires||0), air:P.air||0}; ui.arm = inv.nade?'nade':inv.fire?'fire':null;
@@ -3884,11 +3929,12 @@ function dfOpen(P,done){
     const danger=st.z.some(z=>z.hp>0&&z.x<DF.WALLX+32);
     top.classList.toggle('wallAlert',danger);
     const W=st.plan.waves.length, waveTag=W>1?`<b>제${st.wi+1}파</b>/${W}${st.gapT!=null&&st.wi<W-1?' · 다음 파까지 숨 돌리기':''} · `:'';
-    const status=waveTag+(danger?(st.broke?'정문 돌파 위험':'담장 앞 접근')+' · ':'')+`남은 무리 <b>${Math.max(0,left)}</b> · 🪵 +${Math.floor(st.loot||0)} · 담장 <b>${(st.max>0?Math.max(0,Math.round(st.wall/st.max*100)):0)}%</b> · 침입 ${st.leaks}`;
+    const fumes=Math.ceil(Math.max(0,...(st.gas||[]).filter(g=>g.x<DF.WALLX+70).map(g=>g.t)));
+    const status=(fumes?(P.mods?.gasmask?'😷 방독면 보호 중':'☁ 전방 사격 지연 '+fumes+'초')+' · ':'')+waveTag+(danger?(st.broke?'정문 돌파 위험':'담장 앞 접근')+' · ':'')+`남은 무리 <b>${Math.max(0,left)}</b> · 🪵 +${Math.floor(st.loot||0)} · 담장 <b>${(st.max>0?Math.max(0,Math.round(st.wall/st.max*100)):0)}%</b> · 침입 ${st.leaks}`;
     if(status!==previousStatus){top.innerHTML=status;previousStatus=status;}
     const gk=`${inGap()}|${st.wi}|${st.flareLeft}`; if(gk!==ui.gapKey){ ui.gapKey=gk; if(!inGap()&&ui.gapMode){ ui.gapMode=null; tip.innerHTML=''; } renderAct(); }
     updateRepair(); if(st.supLeft!==lastActSup||(st.tank&&st.tank.en!==lastActEn))renderAct(); dfDraw(ctx,st,ui); if(st.done) return finish(); raf=requestAnimationFrame(loop); };
-  const start=()=>{ S.lastFormation={...place.units}; ui.phase='run'; ui.sel=null; tip.innerHTML=''; st=dfCreate(P,place);
+  const start=()=>{ tip.onclick=null; S.lastFormation={...place.units}; ui.phase='run'; ui.sel=null; tip.innerHTML=''; st=dfCreate(P,place);
     st.emitSound=kind=>{ if(ui.phase==='run')battleSound(kind); };
     nextBattleCue.clear(); renderAct();
     btns.innerHTML='<button id="dfFast">⏩ 2배속</button><button id="dfSkip">⏭ 결과</button>'+(P.units.includes('zofia')?'<button id="dfRepair">🔧 수리 전환</button>':'');
@@ -5268,7 +5314,7 @@ midBosses.final.src='data:image/webp;base64,UklGRnBgAABXRUJQVlA4WAoAAAAQAAAA0AAA
    정비 → 밤 전투 → 강화 카드 → … → 여섯 번째 밤의 거인 → 전장 클리어. */
 const DG_META_KEY='RS1945_DEF_META_V1', DG_SAVE_KEY='RS1945_DEF_SAVE_V1', DG_RANK_KEY='RS1945_DEF_RANKS_V1';
 const DG_START_MATES=['emil','jack','marie','leon'];
-const DG_MATE_COST=4;
+const DG_MATE_COST=3;
 const DG_GAIN={base:1,per:15};
 DFK.bossLeak=8; // 거인이 뚫고 들어오면 거점 체력 8
 MC.push({lv:'기본',q:'1916년 솜 전투에서 영국군이 궤도로 참호를 건너기 위해 처음 실전에 투입한 장비는?',o:['잠수함','전차','항공모함','레이더'],a:1,e:'영국군은 9월 15일 마크 I 전차를 투입했다. 험한 지형과 기계 고장으로 전진을 멈춘 전차도 있었다.'});
@@ -5455,25 +5501,31 @@ function dgSetupUI(){
   startGame=dgStartGame; render=dgRender;
   dgStartScreen();
 }
+function dgStarSupply(){ const best=dgMeta().best||{};return Math.min(8,Object.values(best).reduce((a,v)=>a+(v>=85?3:v>=65?2:1),0)); }
 function dgStartScreen(){
   const m=dgMeta();
   const locked=ALL_IDS.filter(id=>!m.unlocked.includes(id));
   $('dgMeta').innerHTML=`<p>🎖️ 훈장 <b>${m.medals}</b> · 함께할 수 있는 동료 <b>${m.unlocked.length}</b>/8 · 기억 조각 <b>${m.codex.length}</b>/${DG_STAGES.length}</p>`+
+    `<p>★ 전장 별 1개마다 시작 물자 +1 (현재 +${dgStarSupply()}, 최대 +8)</p>`+
+    (m.codex.length?'<p><b>전장 다시 도전</b> · 단판 도전 · 기존 이어하기 보존</p>'+DG_STAGES.map((st,i)=>m.codex.includes(st.key)?'<button class="hbtn" data-replay="'+i+'">'+st.n+' '+('★'.repeat(m.best?.[st.key]>=85?3:m.best?.[st.key]>=65?2:1))+'</button>':'').join(''):'')+
     (locked.length?`<p class="sys" style="font-size:12px">훈장 ${DG_MATE_COST}개로 동료를 영입한다:</p><p>${locked.map(id=>`<button class="hbtn" data-mate="${id}" ${m.medals<DG_MATE_COST?'disabled':''}>+ ${DF_UNITS[id].n}</button>`).join(' ')}</p>`:'')+
     (m.codex.length?`<details><summary>기억 조각 도감</summary>${m.codex.map(k=>{ const s=DG_STAGES.find(x=>x.key===k); return s?`<p><b>${s.codex.t}</b> ${m.best?.[k]?'★'.repeat(m.best[k]>=85?3:m.best[k]>=65?2:1)+' '+m.best[k]+'점':''}<br>${s.codex.b}</p>`:''; }).join('')}</details>`:'');
   $('dgMeta').querySelectorAll('button[data-mate]').forEach(b=>b.onclick=()=>{ const mm=dgMeta(); if(mm.medals<DG_MATE_COST) return; mm.medals-=DG_MATE_COST; mm.unlocked.push(b.dataset.mate); dgSaveMeta(mm); dgStartScreen(); });
+  $('dgMeta').querySelectorAll('[data-replay]').forEach(b=>b.onclick=()=>dgStartGame(Number(b.dataset.replay)));
   const ranks=dgRanks();
   $('dgRanks').innerHTML=ranks.length?`<div class="rankTableScroll"><table class="rankTable"><tr><th>순위</th><th>지휘관</th><th>도달</th><th>별</th></tr>${ranks.slice(0,15).map((r,i)=>`<tr><td>${i+1}위</td><td>${esc(r.name)}</td><td><b>${r.clear?'🕊️ ':''}${esc(r.where)}</b></td><td>★ ${r.stars}</td></tr>`).join('')}</table></div>`:'아직 기록이 없습니다.';
   const sv=dgReadSave(); $('continueBtn').classList.toggle('hidden',!sv); $('continueInfo').textContent=sv?`저장된 도전: ${sv.name} · ${DG_STAGES[sv.dg.stage].n} 제${sv.dg.night}밤`:'';
 }
 
 /* ---- 시작 ---- */
-function dgStartGame(){
-  if(dgReadSave()&&!confirm('저장된 도전이 있습니다. 새로 시작하면 저장이 지워집니다. 계속할까요?')) return;
-  dgClearSave();
+function dgStartGame(target){
+  const replay=Number.isInteger(target)&&dgMeta().codex.includes(DG_STAGES[target]?.key);
+  if(!replay&&dgReadSave()&&!confirm('저장된 도전이 있습니다. 새로 시작하면 저장이 지워집니다. 계속할까요?')) return;
+  if(!replay)dgClearSave();
   const name=$('nameInput').value.trim()||'지휘관'+Math.floor(1000+Math.random()*9000);
   S=newState(name); S.squad=[]; S.day=0;
-  S.dg={stage:0,night:1,baseHp:20,baseMax:20,wall:0,wallCap:65,sup:0,nades:2,fires:2,air:0,airLv:0,tank:null,weapons:{},passive:{},slotLv:{tower:1,win1:1,win2:1,front:1},wire:null,flare:false,trap:0,starsStage:0,starsTotal:0,kills:0,medalsRun:0,cleared:[],bossNo:0};
+  S.dg={replay,stage:replay?target:0,night:1,baseHp:20,baseMax:20,wall:0,wallCap:65,sup:0,nades:2,fires:2,air:0,airLv:0,tank:null,weapons:{},passive:{},slotLv:{tower:1,win1:1,win2:1,front:1},wire:null,flare:false,trap:0,starsStage:0,starsTotal:0,kills:0,medalsRun:0,cleared:[],bossNo:0};
+  if(replay){S.dg.sup=target*10;S.dg.nades+=target;S.dg.fires+=target;}
   const m=dgMeta(); m.runs=(m.runs||0)+1; dgSaveMeta(m);
   $('startScreen').classList.add('hidden'); $('endScreen').classList.add('hidden'); $('gameScreen').classList.remove('hidden'); document.body.classList.add('ingame');
   $('log').innerHTML='';
@@ -5481,7 +5533,7 @@ function dgStartGame(){
 }
 function dgBeginStage(){
   const g=S.dg, st=dgStage();
-  g.night=1; g.wall=st.wall; g.sup+=st.sup; g.wire=null; g.trap=0; g.starsStage=0; g.flawless=0; g.midWin=false; g.shieldsHit=0; g.gasmask=false;
+  g.night=1; g.wall=st.wall; g.sup+=st.sup+dgStarSupply(); g.wire=null; g.trap=0; g.starsStage=0; g.flawless=0; g.midWin=false; g.shieldsHit=0; g.gasmask=false;
   audioScene('shelter');
   log(`<div class="chap"><small>전장 ${g.stage+1} / ${DG_STAGES.length} · ${st.when}</small><br>${st.n}</div>`,'head');
   st.brief.forEach(t=>log(t,'story'));
@@ -5491,11 +5543,11 @@ function dgBeginStage(){
 }
 function dgPickSquad(sel){
   const m=dgMeta(), pool=ALL_IDS.filter(id=>m.unlocked.includes(id)), need=Math.min(4,pool.length);
-  if(pool.length<=4) return dgSetSquad(pool);
+  if(pool.length<=4){choices([{label:'이 분대로 출발',sub:pool.map(id=>DF_UNITS[id].n+' · '+DF_UNITS[id].tip.split(' · ')[0]).join(' / '),fn:()=>dgSetSquad(pool)}]);return;}
   const all=[...baseMates(),...NEW_MATES];
   choices(pool.map(id=>{ const mt=all.find(x=>x.id===id)||{}; const on=sel.includes(id);
     return {label:`${on?'✔ ':''}${DF_UNITS[id].n}`,sub:`${mt.role||''} · ${DF_UNITS[id].tip}`,cls:on?'primary':'',fn:()=>dgPickSquad(on?sel.filter(x=>x!==id):sel.length<need?[...sel,id]:sel)}; })
-    .concat([{label:sel.length===need?'⚔️ 이 네 명과 출발한다':`동료 ${need}명을 고르세요 (${sel.length}/${need})`,disabled:sel.length!==need,fn:()=>dgSetSquad(sel)}]));
+    .concat([{label:sel.length===need?'출발 · '+sel.map(id=>DF_UNITS[id].n).join(', '):`동료 ${need}명을 고르세요 (${sel.length}/${need})`,disabled:sel.length!==need,fn:()=>dgSetSquad(sel)}]));
 }
 function dgSetSquad(ids){
   const all=[...baseMates(),...NEW_MATES.map(x=>({...x}))];
@@ -5559,7 +5611,7 @@ function dgPrep(){
 function dgWeaponShop(){
   const g=S.dg;
   choices(dgSquadIds().filter(id=>g.weapons[id]).map(id=>{ const w=g.weapons[id], D=DF_WEAPONS[w.w], c=DG_WCOST[w.lv];
-    return {label:`🔫 ${DF_UNITS[id].n} — ${modelName(w.w,w.lv)} Lv${w.lv} → ${modelName(w.w,w.lv+1)} Lv${Math.min(5,w.lv+1)}`,sub:w.lv>=5?`진화 완료: ${D.evo}`:w.lv===4?`물자 ${c} → ★진화: ${D.evo}`:w.lv===2?`물자 ${c} → 기종 교체 · 사거리 +8%`:`물자 ${c} → 위력 +32% · 사격 간격 −7%`,cls:[2,4].includes(w.lv)?'primary':'',disabled:w.lv>=5||g.sup<c,
+    return {label:`${DF_UNITS[id].n} · ${D.n} Lv${w.lv}${w.lv<5?" → "+(w.lv+1):" ★"}`,sub:w.lv>=5?`진화 완료: ${D.evo}`:w.lv===4?`물자 ${c} · ${weaponModels[w.w][2]} 지급 · ${D.evo}`:w.lv===2?`물자 ${c} · ${weaponModels[w.w][1]} 지급 · 사거리 +${Math.round(weaponGrowth[w.w][2]*100)}%`:`물자 ${c} → ${growthLabel(w.w)}`,cls:[2,4].includes(w.lv)?'primary':'',disabled:w.lv>=5||g.sup<c,
       fn:()=>dgBuy(c,()=>{w.lv++;},`${DF_UNITS[id].n}의 ${modelName(w.w,w.lv+1)} 강화 — Lv${w.lv+1}${w.lv+1>=5?' ★진화: '+D.evo:''}.`)}; })
     .concat([{label:'↩ 돌아간다',cls:'ghost',fn:dgPrep}]));
 }
@@ -5667,7 +5719,7 @@ function dgCardOffers(){
 }
 function dgCardView(k){
   const g=S.dg, [t,a,b]=k.split(':');
-  if(t==='up'){ const w=g.weapons[a], D=DF_WEAPONS[w.w], nl=w.lv+1; return {ic:'⬆️',n:`${DF_UNITS[a].n}의 ${modelName(w.w,nl)} Lv${nl}`,d:nl>=5?`★진화 — ${D.evo}`:nl===3?'기종 교체 · 사거리 +8%':'기초 위력 +32% · 기본 간격 −7%',gold:nl===3||nl>=5}; }
+  if(t==='up'){ const w=g.weapons[a], D=DF_WEAPONS[w.w], nl=w.lv+1; return {ic:'⬆️',n:`${DF_UNITS[a].n}의 ${modelName(w.w,nl)} Lv${nl}`,d:nl>=5?`★진화 — ${D.evo}`:nl===3?'기종 교체 · 사거리 확대':growthLabel(w.w),gold:nl===3||nl>=5}; }
   if(t==='new'){ const D=DF_WEAPONS[b], cur=g.weapons[a]; const lv=cur?Math.max(1,cur.lv-1):1; return {ic:'🆕',n:`${DF_UNITS[a].n}에게 ${modelName(b,lv)} 지급 (Lv${lv})`,d:`${cur?`지금 ${modelName(cur.w,cur.lv)} Lv${cur.lv} 대신 · `:''}${DG_WDESC[b]}`}; }
   if(t==='p'){ const P=DG_PASSIVE[a], nl=dgCard(a)+1; return {ic:P.ic,n:`${P.n} Lv${nl}`,d:P.d(nl)}; }
   if(k==='air') return {ic:'✈️',n:`항공 지원 Lv${g.airLv+1}`,d:g.airLv?`폭탄 위력 +35% · 밤마다 요청 ${g.airLv+1>=3?2:1}번`:'밤마다 한 번, 전투폭격기가 고른 자리를 따라 폭탄 7발을 떨군다 (거구·거인에게 1.4배)'};
@@ -5707,7 +5759,8 @@ function dgStageClear(res){
   log(`📜 <b>기억 조각 — ${st.codex.t}</b><br>${st.codex.b}`,'info');
   if(st.unlock==='air') log('🔓 <b>항공 지원 요청</b>이 열렸다 — 이제 보급 상자에서 나온다. 1944년 12월 23일, 구름이 걷히자 연합군 전투폭격기(P-47 썬더볼트)가 날아올라 바스토뉴를 에워싼 독일군을 때렸다. 밤마다 한 번, 고른 자리를 따라 폭탄이 떨어진다.','gold');
   if(st.unlock&&DF_WEAPONS[st.unlock]) log(`🔓 새 무기가 열렸다 — <b>${modelName(st.unlock,1)}</b> (${DG_WDESC[st.unlock]}). 이제 보급 상자에서 나온다.`,'gold');
-  if(g.stage+1<DG_STAGES.length){ cont(()=>{ g.stage++; dgBeginStage(); },'다음 전장으로'); }
+  if(g.replay){cont(()=>dgEnd('replay'),'재도전 결과');}
+  else if(g.stage+1<DG_STAGES.length){ cont(()=>{ g.stage++; dgBeginStage(); },'다음 전장으로'); }
   else { dgEnding(); }
 }
 
@@ -5727,14 +5780,14 @@ function dgEnding(){
 /* ---- 끝 · 기록 ---- */
 function dgRanks(){ try{ const a=JSON.parse(localStorage.getItem(DG_RANK_KEY)||'[]'); return Array.isArray(a)?a.sort((x,y)=>(y.score-x.score)||(y.stars-x.stars)):[]; }catch(_){ return []; } }
 function dgEnd(kind){
-  const g=S.dg, st=dgStage(); S.dead=true; dgClearSave();
+  const g=S.dg, st=dgStage(); S.dead=true; if(!g.replay)dgClearSave();
   const cleared=g.cleared.length, nightReached=kind==='clear'?st.nights:g.night;
   const rec={name:S.name,where:kind==='clear'&&cleared>=DG_STAGES.length?'모든 전장':`${st.n} 제${nightReached}밤`,clear:kind==='clear'&&cleared>=DG_STAGES.length,
     score:g.stage*100+(kind==='clear'?st.nights+1:nightReached),stars:g.starsTotal,kills:g.kills,correct:S.correct,total:S.total,at:Date.now()};
-  try{ const a=dgRanks(); a.push(rec); localStorage.setItem(DG_RANK_KEY,JSON.stringify(a.sort((x,y)=>y.score-x.score||y.stars-x.stars).slice(0,200))); }catch(_){}
+  try{ if(!g.replay){const a=dgRanks(); a.push(rec); localStorage.setItem(DG_RANK_KEY,JSON.stringify(a.sort((x,y)=>y.score-x.score||y.stars-x.stars).slice(0,200)));} }catch(_){}
   $('gameScreen').classList.add('hidden'); document.body.classList.remove('ingame');
   const E=$('endScreen'); E.classList.remove('hidden');
-  E.innerHTML=`<h2>${kind==='clear'?'🕊️ 일곱 전장의 기억을 지켜 냈다':kind==='quit'?'도전을 마쳤다':'거점이 무너졌다'}</h2>
+  E.innerHTML=`<h2>${kind==='replay'?'전장 재도전 완료':kind==='clear'?'🕊️ 일곱 전장의 기억을 지켜 냈다':kind==='quit'?'도전을 마쳤다':'거점이 무너졌다'}</h2>
     <p class="story">${esc(S.name)} 지휘관 · 도달: <b>${rec.where}</b></p>
     <p>★ 별 ${g.starsTotal} · 쓰러뜨린 감염자 ${g.kills} · 역사 문제 ${S.correct}/${S.total} · 이번 도전 훈장 +${g.medalsRun}</p>
     <p class="sys">훈장과 기억 조각은 이 기기에 남는다. 첫 화면에서 훈장으로 새 동료를 영입할 수 있다.</p>
@@ -5750,7 +5803,7 @@ function dgShowCards(){
 
 /* ---- 저장 · 이어하기: 정비 화면에서만 ---- */
 function dgSer(){ return JSON.stringify(S,(k,v)=>v instanceof Set?{__set:[...v]}:v); }
-function dgSave(){ try{ if(S&&S.dg) S.dg.stageKey=dgStage().key; localStorage.setItem(DG_SAVE_KEY,dgSer()); }catch(_){} }
+function dgSave(){ if(S?.dg?.replay)return; try{ if(S&&S.dg) S.dg.stageKey=dgStage().key; localStorage.setItem(DG_SAVE_KEY,dgSer()); }catch(_){} }
 function dgReadSave(){ try{ const d=JSON.parse(localStorage.getItem(DG_SAVE_KEY)||'null',(k,v)=>v&&typeof v==='object'&&Array.isArray(v.__set)?new Set(v.__set):v); if(d&&d.dg&&!d.dg.stageKey){ d.dg.stage=DG_STAGES.findIndex(x=>x.key==='ardennes'); } /* 덩케르크가 생기기 전 저장은 아르덴 */ if(d?.dg?.stageKey==='verdun') d.dg.stageKey='somme'; if(d&&d.dg&&d.dg.stageKey){ const i=DG_STAGES.findIndex(x=>x.key===d.dg.stageKey); if(i>=0) d.dg.stage=i; }
   /* 전장당 밤이 6→5로 줄기 전 저장 */ if(d&&d.dg&&DG_STAGES[d.dg.stage]&&d.dg.night>DG_STAGES[d.dg.stage].nights) d.dg.night=DG_STAGES[d.dg.stage].nights;
   return d&&d.dg&&!d.dead?d:null; }catch(_){ return null; } }
@@ -5767,7 +5820,7 @@ function dgResume(){
 }
 const dgOrigCurDate=curDate;
 curDate=function(){ return S&&S.dg?dgDate():dgOrigCurDate(); };
-updateSaveButton=function(){ const b=$('btnSave'); if(b) b.disabled=!(S&&S.dg&&!S.dead&&S.resumePoint==='prep'); };
+updateSaveButton=function(){ const b=$('btnSave'); if(b) b.disabled=!(S&&S.dg&&!S.dg.replay&&!S.dead&&S.resumePoint==='prep'); };
 try{ dgSetupUI(); }catch(e){ console.error(e); }
 
 try{ DG_STAGES.forEach(x=>x.scene&&RS_ART.preloadScene(x.scene.src)); }catch(_){}
