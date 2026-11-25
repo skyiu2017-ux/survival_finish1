@@ -2504,7 +2504,7 @@ const DF_WEAPONS={
   rifle:  {n:'소총',cls:'gun',kind:'gun',dmg:1.2,cd:1.0,range:1,evo:'명사수의 소총 — 한 발이 두 마리를 꿰뚫는다',pierce5:1},
   hunt:   {n:'사냥총',cls:'gun',kind:'gun',dmg:2.1,cd:1.5,range:1,evo:'곰 사냥총 — 맞은 적이 잠시 멈춘다',stun5:.6},
   sniper: {n:'저격총',cls:'gun',kind:'gun',dmg:3.6,cd:2.4,range:1.3,pierce:1,evo:'조준경 저격총 — 네 마리까지 꿰뚫는다',pierce5:3},
-  smg:    {n:'기관단총',cls:'gun',kind:'gun',dmg:.7,cd:.42,range:.8,evo:'드럼 탄창 — 한 번에 두 발',double5:true},
+  smg:    {n:'기관단총',cls:'gun',kind:'gun',dmg:.7,cd:.42,range:.8,evo:'드럼 탄창 — 첫 탄 100% + 추가탄 65%',followUp5:.65},
   lmg:    {n:'경기관총',cls:'gun',kind:'burst',dmg:.85,cd:1.7,range:1,burst:4,evo:'거치식 기관총 — 연사가 7발로',burst5:7},
   shotgun:{n:'참호 산탄총',cls:'gun',kind:'spread',dmg:1.5,cd:1.6,range:.6,hits:3,evo:'연발 산탄총 — 다섯 마리를 한꺼번에',hits5:5},
   nade:   {n:'수류탄',cls:'boom',kind:'aoe',dmg:2.2,cd:5,range:1,rad:16,evo:'집속 수류탄 — 폭발 범위 1.5배',rad5:1.5},
@@ -2596,7 +2596,7 @@ function dfWeaponOf(u,P){
   const D=DF_WEAPONS[w.w], lv=Math.max(1,Math.min(5,w.lv||1)), evo=lv>=5;
   const [power,rate,reach]=weaponGrowth[w.w];
   return {...D,id:w.w,n:modelName(w.w,lv),lv,evo,range:D.range*(lv>=3?1+reach:1),dmg:D.dmg*(1+power*(lv-1)),cd:D.cd*(1-rate*(lv-1)),
-    pierce:(evo&&D.pierce5)||D.pierce||0, stun:evo&&D.stun5||0, double:evo&&D.double5, burst:(evo&&D.burst5)||D.burst||1,
+    pierce:(evo&&D.pierce5)||D.pierce||0, stun:evo&&D.stun5||0, followUp:evo&&D.followUp5, burst:(evo&&D.burst5)||D.burst||1,
     hits:(evo&&D.hits5)||D.hits||1, rad:(D.rad||0)*(evo&&D.rad5||1), shells:(evo&&D.shells5)||1, fire:evo&&D.fire5};
 }
 // 자리 강화 단계(1~3). 바리케이드 두 곳은 같은 단계를 쓴다.
@@ -2792,7 +2792,9 @@ function dfWeaponFire(st,u,W,S2,mod,supply){
   const O=shotOrigin(u.id,S2), hit=(q,d)=>{ q.hp-=d*bonus(q)*dfMul(q,W.kind==='aoe'||W.kind==='rocket'?'blast':'gun'); q.hit=.15; if(W.stun&&!q.boss) q.stun=Math.max(q.stun,W.stun); };
   const dmg=W.dmg*mod.dmg, sound=({emil:'hunting',ibra:'sniper',zofia:'pistol'})[u.id]||'rifle';
   const tracer=(q)=>st.fx.push({k:'shot',sx:O.x,sy:O.y,x:q.x,y:DF.ROWS[q.row]-8,t:.12});
-  if(W.kind==='gun'){ const n=W.double?2:1; for(let k=0;k<n;k++){ tgs.slice(0,1+W.pierce).forEach(q=>hit(q,dmg)); tracer(tgs[0]); }
+  if(W.kind==='gun'){ const targets=tgs.slice(0,1+W.pierce);
+    targets.forEach(q=>hit(q,dmg)); tracer(targets[0]);
+    if(W.followUp){ targets.forEach(q=>hit(q,dmg*W.followUp)); tracer(targets[0]); }
     st.emitSound?.(sound); st.fx.push({k:'num',x:tgs[0].x,y:DF.ROWS[tgs[0].row]-20,v:'-'+Math.round(dmg*10)/10,t:.6}); u.cd=W.cd*DFK.k*supply*mod.cd; u.fl=.12; }
   else if(W.kind==='burst'){ for(let k=0;k<W.burst;k++){ const q=tgs[k%Math.min(tgs.length,3)]; hit(q,dmg); if(k<3) tracer(q); } st.emitSound?.('rifle'); u.cd=W.cd*DFK.k*supply*mod.cd; u.fl=.2; }
   else if(W.kind==='spread'){ tgs.slice(0,W.hits).forEach(q=>{ hit(q,dmg); tracer(q); }); st.emitSound?.('hunting'); u.cd=W.cd*DFK.k*supply*mod.cd; u.fl=.18; }
